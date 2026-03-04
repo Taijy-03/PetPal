@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PetPal",
+    "name": "喵记",
     "slug": "petpal",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,22 +9,22 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FF6B6B"
+      "backgroundColor": "#FFFEF5"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.petpal.app",
+      "bundleIdentifier": "com.meownote.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera to take photos of your pets.",
-        "NSPhotoLibraryUsageDescription": "This app accesses your photos to add pet pictures."
+        "NSCameraUsageDescription": "此应用使用相机为您的猫咪拍照。",
+        "NSPhotoLibraryUsageDescription": "此应用访问您的相册以添加猫咪照片。"
       }
     },
     "android": {
-      "package": "com.petpal.app",
+      "package": "com.meownote.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#FF6B6B",
+        "backgroundColor": "#FFFEF5",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -44,8 +44,15 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app accesses your photos to let you add pet pictures.",
-          "cameraPermission": "The app uses your camera to take photos of your pets."
+          "photosPermission": "此应用访问您的相册以添加猫咪照片。",
+          "cameraPermission": "此应用使用相机为您的猫咪拍照。"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#E8C547",
+          "defaultChannel": "pet-reminders"
         }
       ]
     ],

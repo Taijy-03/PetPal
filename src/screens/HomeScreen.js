@@ -10,18 +10,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useApp } from '../context/AppContext';
+import { useApp, useTheme } from '../context/AppContext';
 import PetCard from '../components/PetCard';
 import EmptyState from '../components/EmptyState';
-import { LightTheme } from '../theme/theme';
 import {
   getRelativeTime,
   getActivityIcon,
   getHealthIcon,
   getPetTypeIcon,
 } from '../utils/helpers';
-
-const theme = LightTheme;
 
 export default function HomeScreen({ navigation }) {
   const {
@@ -33,6 +30,8 @@ export default function HomeScreen({ navigation }) {
     refreshData,
     selectPet,
   } = useApp();
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [refreshing, setRefreshing] = React.useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -67,10 +66,10 @@ export default function HomeScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <EmptyState
-          emoji="🐾"
-          title="Welcome to PetPal!"
-          message="Start by adding your first pet to track their health, activities, and memories."
-          actionLabel="Add Your First Pet"
+          emoji="🐱"
+          title="欢迎来到喵记！"
+          message="开始添加你的第一只猫咪，记录它的健康、活动和美好时光吧~"
+          actionLabel="添加你的猫咪"
           onAction={() => navigation.navigate('AddPet')}
         />
       </View>
@@ -88,9 +87,9 @@ export default function HomeScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Hello! 👋</Text>
+          <Text style={styles.greeting}>喵~ 🐱</Text>
           <Text style={styles.subtitle}>
-            You have {totalPets} pet{totalPets !== 1 ? 's' : ''}
+            你有 {totalPets} 只猫咪
           </Text>
         </View>
         <TouchableOpacity
@@ -107,34 +106,34 @@ export default function HomeScreen({ navigation }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.statsContainer}
       >
-        <View style={[styles.statCard, { backgroundColor: '#FF6B6B' }]}>
+        <View style={[styles.statCard, { backgroundColor: '#E8C547' }]}>
           <Ionicons name="paw" size={24} color="#FFF" />
           <Text style={styles.statNumber}>{totalPets}</Text>
-          <Text style={styles.statLabel}>Pets</Text>
+          <Text style={styles.statLabel}>猫咪</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: '#4ECDC4' }]}>
+        <View style={[styles.statCard, { backgroundColor: '#A8D5A2' }]}>
           <Ionicons name="medkit" size={24} color="#FFF" />
           <Text style={styles.statNumber}>{totalRecords}</Text>
-          <Text style={styles.statLabel}>Records</Text>
+          <Text style={styles.statLabel}>健康记录</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: '#45B7D1' }]}>
+        <View style={[styles.statCard, { backgroundColor: '#9DC4E0' }]}>
           <Ionicons name="footsteps" size={24} color="#FFF" />
           <Text style={styles.statNumber}>{totalActivities}</Text>
-          <Text style={styles.statLabel}>Activities</Text>
+          <Text style={styles.statLabel}>活动</Text>
         </View>
-        <View style={[styles.statCard, { backgroundColor: '#96CEB4' }]}>
+        <View style={[styles.statCard, { backgroundColor: '#F9D89C' }]}>
           <Ionicons name="notifications" size={24} color="#FFF" />
           <Text style={styles.statNumber}>{activeReminders}</Text>
-          <Text style={styles.statLabel}>Reminders</Text>
+          <Text style={styles.statLabel}>提醒</Text>
         </View>
       </ScrollView>
 
       {/* My Pets */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>My Pets</Text>
+          <Text style={styles.sectionTitle}>我的猫咪</Text>
           <TouchableOpacity onPress={() => navigation.navigate('PetsTab')}>
-            <Text style={styles.seeAll}>See All</Text>
+            <Text style={styles.seeAll}>查看全部</Text>
           </TouchableOpacity>
         </View>
         {pets.map((pet) => (
@@ -150,7 +149,7 @@ export default function HomeScreen({ navigation }) {
       {recentActivities.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <Text style={styles.sectionTitle}>最近活动</Text>
           </View>
           {recentActivities.map((activity) => {
             const pet = pets.find((p) => p.id === activity.petId);
@@ -164,7 +163,7 @@ export default function HomeScreen({ navigation }) {
                     {activity.type?.charAt(0).toUpperCase() + activity.type?.slice(1)}
                   </Text>
                   <Text style={styles.activitySubtitle}>
-                    {pet?.name || 'Unknown Pet'} •{' '}
+                    {pet?.name || '未知猫咪'} •{' '}
                     {getRelativeTime(activity.date)}
                   </Text>
                 </View>
@@ -178,7 +177,7 @@ export default function HomeScreen({ navigation }) {
       {upcomingReminders.length > 0 && (
         <View style={[styles.section, { marginBottom: theme.spacing.xxl }]}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Upcoming</Text>
+            <Text style={styles.sectionTitle}>即将到来</Text>
           </View>
           {upcomingReminders.map((reminder) => {
             const pet = pets.find((p) => p.id === reminder.petId);
@@ -195,7 +194,7 @@ export default function HomeScreen({ navigation }) {
                   <Text style={styles.reminderTitle}>{reminder.title}</Text>
                   <Text style={styles.reminderSubtitle}>
                     {pet?.name} •{' '}
-                    {new Date(reminder.dateTime).toLocaleDateString()}
+                    {new Date(reminder.dateTime).toLocaleDateString('zh-CN')}
                   </Text>
                 </View>
               </View>
@@ -207,7 +206,7 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -315,7 +314,7 @@ const styles = StyleSheet.create({
   reminderItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF9E6',
+    backgroundColor: theme.colors.warning + '20',
     marginHorizontal: theme.spacing.md,
     marginVertical: theme.spacing.xs,
     padding: theme.spacing.md,

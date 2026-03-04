@@ -11,9 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useApp } from '../context/AppContext';
+import { useApp, useTheme } from '../context/AppContext';
 import { SectionHeader } from '../components/FormElements';
-import { LightTheme } from '../theme/theme';
 import {
   calculateAge,
   getPetTypeIcon,
@@ -22,9 +21,8 @@ import {
   formatDate,
   getRelativeTime,
   generateId,
+  getBreedLabel,
 } from '../utils/helpers';
-
-const theme = LightTheme;
 
 export default function PetDetailScreen({ navigation, route }) {
   const petId = route?.params?.petId;
@@ -37,6 +35,8 @@ export default function PetDetailScreen({ navigation, route }) {
     updatePet,
     selectPet,
   } = useApp();
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const pet = pets.find((p) => p.id === petId);
   const petHealthRecords = healthRecords
@@ -61,10 +61,10 @@ export default function PetDetailScreen({ navigation, route }) {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Pet',
-      `Are you sure you want to delete ${pet.name}? This will also remove all their records, activities, and reminders.`,
+      '删除猫咪',
+      `确定要删除 ${pet.name} 吗？这将同时删除所有相关的记录、活动和提醒。`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: '取消', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
@@ -81,7 +81,7 @@ export default function PetDetailScreen({ navigation, route }) {
     const permissionResult =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert('Permission needed', 'Please allow photo access.');
+      Alert.alert('需要权限', '请允许访问相册。');
       return;
     }
 
@@ -102,79 +102,79 @@ export default function PetDetailScreen({ navigation, route }) {
   };
 
   const tabs = [
-    { key: 'info', label: 'Info', icon: 'information-circle-outline' },
-    { key: 'health', label: 'Health', icon: 'medkit-outline' },
-    { key: 'activity', label: 'Activity', icon: 'footsteps-outline' },
-    { key: 'gallery', label: 'Gallery', icon: 'images-outline' },
+    { key: 'info', label: '信息', icon: 'information-circle-outline' },
+    { key: 'health', label: '健康', icon: 'medkit-outline' },
+    { key: 'activity', label: '活动', icon: 'footsteps-outline' },
+    { key: 'gallery', label: '相册', icon: 'images-outline' },
   ];
 
   const renderInfoTab = () => (
     <View style={styles.tabContent}>
       <View style={styles.infoGrid}>
-        <InfoItem label="Type" value={`${getPetTypeIcon(pet.type)} ${pet.type?.charAt(0).toUpperCase() + pet.type?.slice(1)}`} />
-        {pet.breed && <InfoItem label="Breed" value={pet.breed} />}
+        <InfoItem label="类型" value={`${getPetTypeIcon(pet.type)} 猫咪`} />
+        {pet.breed && <InfoItem label="品种" value={getBreedLabel(pet.breed)} />}
         {pet.gender && (
           <InfoItem
-            label="Gender"
-            value={pet.gender.charAt(0).toUpperCase() + pet.gender.slice(1)}
+            label="性别"
+            value={pet.gender === 'male' ? '♂️' : pet.gender === 'female' ? '♀️' : pet.gender}
           />
         )}
         {pet.birthDate && (
-          <InfoItem label="Age" value={calculateAge(pet.birthDate)} />
+          <InfoItem label="年龄" value={calculateAge(pet.birthDate)} />
         )}
         {pet.birthDate && (
-          <InfoItem label="Birth Date" value={formatDate(pet.birthDate)} />
+          <InfoItem label="出生日期" value={formatDate(pet.birthDate)} />
         )}
         {pet.weight && (
           <InfoItem
-            label="Weight"
+            label="体重"
             value={`${pet.weight} ${pet.weightUnit || 'kg'}`}
           />
         )}
-        {pet.color && <InfoItem label="Color" value={pet.color} />}
+        {pet.color && <InfoItem label="毛色" value={pet.color} />}
         {pet.microchip && (
-          <InfoItem label="Microchip" value={pet.microchip} />
+          <InfoItem label="芯片号" value={pet.microchip} />
         )}
       </View>
       {pet.notes && (
         <View style={styles.notesSection}>
-          <Text style={styles.notesLabel}>Notes</Text>
+          <Text style={styles.notesLabel}>备注</Text>
           <Text style={styles.notesText}>{pet.notes}</Text>
         </View>
       )}
 
       {/* Quick Actions */}
       <View style={styles.quickActions}>
-        <Text style={styles.quickActionsTitle}>Quick Actions</Text>
+        <Text style={styles.quickActionsTitle}>快捷操作</Text>
         <View style={styles.actionGrid}>
           <QuickAction
             icon="medkit"
-            label="Health Record"
-            color="#4ECDC4"
+            label="健康记录"
+            color="#BA90C6"
             onPress={() =>
               navigation.navigate('AddHealthRecord', { petId: pet.id })
             }
           />
           <QuickAction
             icon="footsteps"
-            label="Log Activity"
-            color="#45B7D1"
+            label="记录活动"
+            color="#9DC4E0"
             onPress={() =>
               navigation.navigate('AddActivity', { petId: pet.id })
             }
           />
           <QuickAction
             icon="alarm"
-            label="Add Reminder"
-            color="#96CEB4"
+            label="添加提醒"
+            color="#8BC7A3"
             onPress={() =>
               navigation.navigate('AddReminder', { petId: pet.id })
             }
           />
           <QuickAction
             icon="camera"
-            label="Add Photo"
-            color="#DDA0DD"
+            label="添加照片"
+            color="#E8A0BF"
             onPress={addPhotoToGallery}
           />
         </View>
@@ -191,12 +191,12 @@ export default function PetDetailScreen({ navigation, route }) {
         }
       >
         <Ionicons name="add-circle" size={20} color={theme.colors.primary} />
-        <Text style={styles.addRecordText}>Add Health Record</Text>
+        <Text style={styles.addRecordText}>添加健康记录</Text>
       </TouchableOpacity>
       {petHealthRecords.length === 0 ? (
         <View style={styles.emptyTab}>
           <Ionicons name="medkit-outline" size={48} color={theme.colors.textLight} />
-          <Text style={styles.emptyTabText}>No health records yet</Text>
+          <Text style={styles.emptyTabText}>暂无健康记录</Text>
         </View>
       ) : (
         petHealthRecords.map((record) => (
@@ -240,12 +240,12 @@ export default function PetDetailScreen({ navigation, route }) {
         }
       >
         <Ionicons name="add-circle" size={20} color={theme.colors.primary} />
-        <Text style={styles.addRecordText}>Log Activity</Text>
+        <Text style={styles.addRecordText}>记录活动</Text>
       </TouchableOpacity>
       {petActivities.length === 0 ? (
         <View style={styles.emptyTab}>
           <Ionicons name="footsteps-outline" size={48} color={theme.colors.textLight} />
-          <Text style={styles.emptyTabText}>No activities logged yet</Text>
+          <Text style={styles.emptyTabText}>暂无活动记录</Text>
         </View>
       ) : (
         petActivities.map((activity) => (
@@ -288,12 +288,12 @@ export default function PetDetailScreen({ navigation, route }) {
           onPress={addPhotoToGallery}
         >
           <Ionicons name="add-circle" size={20} color={theme.colors.primary} />
-          <Text style={styles.addRecordText}>Add Photo</Text>
+          <Text style={styles.addRecordText}>添加照片</Text>
         </TouchableOpacity>
         {allPhotos.length === 0 ? (
           <View style={styles.emptyTab}>
             <Ionicons name="images-outline" size={48} color={theme.colors.textLight} />
-            <Text style={styles.emptyTabText}>No photos yet</Text>
+            <Text style={styles.emptyTabText}>暂无照片</Text>
           </View>
         ) : (
           <View style={styles.photoGrid}>
@@ -324,7 +324,7 @@ export default function PetDetailScreen({ navigation, route }) {
         )}
         <Text style={styles.heroName}>{pet.name}</Text>
         <Text style={styles.heroBreed}>
-          {pet.breed || pet.type?.charAt(0).toUpperCase() + pet.type?.slice(1)}
+          {getBreedLabel(pet.breed)}
         </Text>
 
         {/* Action Buttons */}
@@ -336,7 +336,7 @@ export default function PetDetailScreen({ navigation, route }) {
             }
           >
             <Ionicons name="pencil" size={18} color={theme.colors.primary} />
-            <Text style={styles.heroButtonText}>Edit</Text>
+            <Text style={styles.heroButtonText}>编辑</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.heroButton, styles.heroButtonDanger]}
@@ -344,7 +344,7 @@ export default function PetDetailScreen({ navigation, route }) {
           >
             <Ionicons name="trash" size={18} color={theme.colors.error} />
             <Text style={[styles.heroButtonText, { color: theme.colors.error }]}>
-              Delete
+              删除
             </Text>
           </TouchableOpacity>
         </View>
@@ -389,6 +389,8 @@ export default function PetDetailScreen({ navigation, route }) {
 }
 
 function InfoItem({ label, value }) {
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.infoItem}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -398,6 +400,8 @@ function InfoItem({ label, value }) {
 }
 
 function QuickAction({ icon, label, color, onPress }) {
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   return (
     <TouchableOpacity style={styles.quickAction} onPress={onPress}>
       <View style={[styles.quickActionIcon, { backgroundColor: color + '20' }]}>
@@ -408,7 +412,7 @@ function QuickAction({ icon, label, color, onPress }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

@@ -3,7 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { LightTheme } from '../theme/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../context/AppContext';
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
@@ -18,133 +19,144 @@ import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-const theme = LightTheme;
 
-const screenOptions = {
+const getScreenOptions = (theme) => ({
   headerStyle: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.headerBackground,
   },
-  headerTintColor: '#FFF',
+  headerTintColor: theme.colors.headerText,
   headerTitleStyle: {
     fontWeight: '600',
   },
   headerShadowVisible: false,
-};
+});
 
 function HomeStack() {
+  const theme = useTheme();
+  const screenOptions = getScreenOptions(theme);
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="HomeMain"
         component={HomeScreen}
-        options={{ title: '🐾 PetPal' }}
+        options={{ title: '🐱 喵记' }}
       />
       <Stack.Screen
         name="PetDetail"
         component={PetDetailScreen}
-        options={({ route }) => ({ title: 'Pet Details' })}
+        options={({ route }) => ({ title: '猫咪详情' })}
       />
       <Stack.Screen
         name="AddPet"
         component={AddEditPetScreen}
-        options={{ title: 'Add New Pet' }}
+        options={{ title: '添加猫咪' }}
       />
       <Stack.Screen
         name="EditPet"
         component={AddEditPetScreen}
-        options={{ title: 'Edit Pet' }}
+        options={{ title: '编辑猫咪' }}
       />
       <Stack.Screen
         name="AddHealthRecord"
         component={AddHealthRecordScreen}
-        options={{ title: 'Add Health Record' }}
+        options={{ title: '添加健康记录' }}
       />
       <Stack.Screen
         name="AddActivity"
         component={AddActivityScreen}
-        options={{ title: 'Log Activity' }}
+        options={{ title: '记录活动' }}
       />
       <Stack.Screen
         name="AddReminder"
         component={AddReminderScreen}
-        options={{ title: 'Add Reminder' }}
+        options={{ title: '添加提醒' }}
       />
     </Stack.Navigator>
   );
 }
 
 function PetsStack() {
+  const theme = useTheme();
+  const screenOptions = getScreenOptions(theme);
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="PetsList"
         component={PetsListScreen}
-        options={{ title: 'My Pets' }}
+        options={{ title: '我的猫咪' }}
       />
       <Stack.Screen
         name="PetDetail"
         component={PetDetailScreen}
-        options={{ title: 'Pet Details' }}
+        options={{ title: '猫咪详情' }}
       />
       <Stack.Screen
         name="AddPet"
         component={AddEditPetScreen}
-        options={{ title: 'Add New Pet' }}
+        options={{ title: '添加猫咪' }}
       />
       <Stack.Screen
         name="EditPet"
         component={AddEditPetScreen}
-        options={{ title: 'Edit Pet' }}
+        options={{ title: '编辑猫咪' }}
       />
       <Stack.Screen
         name="AddHealthRecord"
         component={AddHealthRecordScreen}
-        options={{ title: 'Add Health Record' }}
+        options={{ title: '添加健康记录' }}
       />
       <Stack.Screen
         name="AddActivity"
         component={AddActivityScreen}
-        options={{ title: 'Log Activity' }}
+        options={{ title: '记录活动' }}
       />
       <Stack.Screen
         name="AddReminder"
         component={AddReminderScreen}
-        options={{ title: 'Add Reminder' }}
+        options={{ title: '添加提醒' }}
       />
     </Stack.Navigator>
   );
 }
 
 function RemindersStack() {
+  const theme = useTheme();
+  const screenOptions = getScreenOptions(theme);
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="RemindersList"
         component={RemindersScreen}
-        options={{ title: 'Reminders' }}
+        options={{ title: '提醒' }}
       />
       <Stack.Screen
         name="AddReminder"
         component={AddReminderScreen}
-        options={{ title: 'Add Reminder' }}
+        options={{ title: '添加提醒' }}
       />
     </Stack.Navigator>
   );
 }
 
 function SettingsStack() {
+  const theme = useTheme();
+  const screenOptions = getScreenOptions(theme);
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="SettingsMain"
         component={SettingsScreen}
-        options={{ title: 'Settings' }}
+        options={{ title: '设置' }}
       />
     </Stack.Navigator>
   );
 }
 
 export default function AppNavigator() {
+  const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const tabBarHeight = 60 + insets.bottom;
+
   return (
     <NavigationContainer>
       <Tab.Navigator
@@ -174,9 +186,9 @@ export default function AppNavigator() {
           tabBarStyle: {
             backgroundColor: theme.colors.tabBar,
             borderTopColor: theme.colors.border,
-            paddingBottom: 6,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 6,
             paddingTop: 6,
-            height: 60,
+            height: tabBarHeight,
           },
           tabBarLabelStyle: {
             fontSize: 11,
@@ -188,22 +200,22 @@ export default function AppNavigator() {
         <Tab.Screen
           name="HomeTab"
           component={HomeStack}
-          options={{ title: 'Home' }}
+          options={{ title: '首页' }}
         />
         <Tab.Screen
           name="PetsTab"
           component={PetsStack}
-          options={{ title: 'Pets' }}
+          options={{ title: '猫咪' }}
         />
         <Tab.Screen
           name="RemindersTab"
           component={RemindersStack}
-          options={{ title: 'Reminders' }}
+          options={{ title: '提醒' }}
         />
         <Tab.Screen
           name="SettingsTab"
           component={SettingsStack}
-          options={{ title: 'Settings' }}
+          options={{ title: '设置' }}
         />
       </Tab.Navigator>
     </NavigationContainer>

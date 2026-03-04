@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useApp } from '../context/AppContext';
+import { useApp, useTheme } from '../context/AppContext';
 import {
   FormInput,
   FormPicker,
@@ -16,14 +16,13 @@ import {
   FormButton,
   ChipGroup,
 } from '../components/FormElements';
-import { LightTheme } from '../theme/theme';
 import { generateId, HEALTH_RECORD_TYPES } from '../utils/helpers';
-
-const theme = LightTheme;
 
 export default function AddHealthRecordScreen({ navigation, route }) {
   const { petId } = route.params;
   const { addHealthRecord, pets } = useApp();
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const pet = pets.find((p) => p.id === petId);
 
   const [title, setTitle] = useState('');
@@ -37,7 +36,7 @@ export default function AddHealthRecordScreen({ navigation, route }) {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a title for the record.');
+      Alert.alert('错误', '请输入记录标题。');
       return;
     }
 
@@ -59,7 +58,7 @@ export default function AddHealthRecordScreen({ navigation, route }) {
       await addHealthRecord(record);
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save health record.');
+      Alert.alert('错误', '保存健康记录失败。');
     }
   };
 
@@ -74,11 +73,11 @@ export default function AddHealthRecordScreen({ navigation, route }) {
       >
         <View style={styles.petBanner}>
           <Text style={styles.petBannerText}>
-            📋 Health Record for {pet?.name || 'Pet'}
+            📋 {pet?.name || '猫咪'} 的健康记录
           </Text>
         </View>
 
-        <Text style={styles.label}>Record Type</Text>
+        <Text style={styles.label}>记录类型</Text>
         <ChipGroup
           options={HEALTH_RECORD_TYPES}
           value={type}
@@ -87,39 +86,39 @@ export default function AddHealthRecordScreen({ navigation, route }) {
         <View style={{ height: theme.spacing.md }} />
 
         <FormInput
-          label="Title"
+          label="标题"
           value={title}
           onChangeText={setTitle}
-          placeholder="e.g. Annual Vaccination"
+          placeholder="e.g. 年度疫苗"
           icon="document-text-outline"
           required
         />
 
         <FormDateInput
-          label="Date"
+          label="日期"
           value={date}
           onChange={setDate}
           required
         />
 
         <FormInput
-          label="Veterinarian"
+          label="兽医"
           value={veterinarian}
           onChangeText={setVeterinarian}
-          placeholder="Dr. Smith"
+          placeholder="张医生"
           icon="person-outline"
         />
 
         <FormInput
-          label="Clinic"
+          label="诊所"
           value={clinic}
           onChangeText={setClinic}
-          placeholder="Pet Care Clinic"
+          placeholder="宠物诊所"
           icon="business-outline"
         />
 
         <FormInput
-          label="Cost"
+          label="费用"
           value={cost}
           onChangeText={setCost}
           placeholder="0.00"
@@ -128,27 +127,27 @@ export default function AddHealthRecordScreen({ navigation, route }) {
         />
 
         <FormDateInput
-          label="Next Due Date"
+          label="下次日期"
           value={nextDueDate}
           onChange={setNextDueDate}
-          placeholder="YYYY-MM-DD (optional)"
+          placeholder="YYYY-MM-DD (可选)"
         />
 
         <FormInput
-          label="Notes"
+          label="备注"
           value={notes}
           onChangeText={setNotes}
-          placeholder="Additional notes..."
+          placeholder="其他备注信息..."
           multiline
         />
 
         <FormButton
-          title="Save Health Record"
+          title="保存健康记录"
           onPress={handleSave}
           icon="checkmark-circle"
         />
         <FormButton
-          title="Cancel"
+          title="取消"
           onPress={() => navigation.goBack()}
           variant="outline"
         />
@@ -157,7 +156,7 @@ export default function AddHealthRecordScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

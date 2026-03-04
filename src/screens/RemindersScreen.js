@@ -9,15 +9,15 @@ import {
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useApp } from '../context/AppContext';
+import { useApp, useTheme } from '../context/AppContext';
 import EmptyState from '../components/EmptyState';
-import { LightTheme } from '../theme/theme';
 import { formatDate, formatTime } from '../utils/helpers';
-
-const theme = LightTheme;
+import { isExpoGo } from '../utils/notifications';
 
 export default function RemindersScreen({ navigation }) {
   const { reminders, pets, updateReminder, removeReminder } = useApp();
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const sortedReminders = [...reminders].sort(
     (a, b) => new Date(a.dateTime) - new Date(b.dateTime)
@@ -31,10 +31,10 @@ export default function RemindersScreen({ navigation }) {
   };
 
   const handleDelete = (reminder) => {
-    Alert.alert('Delete Reminder', `Delete "${reminder.title}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert('删除提醒', `确定要删除"${reminder.title}"吗？`, [
+      { text: '取消', style: 'cancel' },
       {
-        text: 'Delete',
+        text: '删除',
         style: 'destructive',
         onPress: () => removeReminder(reminder.id),
       },
@@ -43,12 +43,14 @@ export default function RemindersScreen({ navigation }) {
 
   const getTypeIcon = (type) => {
     const icons = {
-      feeding: '🍖',
-      walk: '🚶',
+      feeding: '🐟',
+      play: '🧶',
       medicine: '💊',
       vet: '🏥',
-      grooming: '✂️',
+      grooming: '🪮',
       vaccination: '💉',
+      litter: '🚽',
+      deworming: '🐛',
       other: '📝',
     };
     return icons[type] || '📝';
@@ -59,20 +61,17 @@ export default function RemindersScreen({ navigation }) {
       <View style={styles.container}>
         <EmptyState
           icon="alarm-outline"
-          title="No Reminders"
-          message="Set reminders for feeding, walks, vet visits, and more to never miss an important pet care task."
-          actionLabel={pets.length > 0 ? 'Add Reminder' : undefined}
+          title="暂无提醒"
+          message="设置喂食、玩耍、看医生等提醒，让你不会错过任何重要的猫咪护理任务~"
+          actionLabel={pets.length > 0 ? '添加提醒' : undefined}
           onAction={
             pets.length > 0
-              ? () =>
-                  navigation.navigate('AddReminder', {
-                    petId: pets[0].id,
-                  })
+              ? () => navigation.navigate('AddReminder', {})
               : undefined
           }
         />
         {pets.length === 0 && (
-          <Text style={styles.hintText}>Add a pet first to create reminders</Text>
+          <Text style={styles.hintText}>请先添加一只猫咪</Text>
         )}
       </View>
     );
@@ -80,6 +79,14 @@ export default function RemindersScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      {isExpoGo && (
+        <View style={styles.expoGoBanner}>
+          <Ionicons name="information-circle-outline" size={16} color={styles.expoGoBannerText.color} />
+          <Text style={styles.expoGoBannerText}>
+            当前在 Expo Go 中运行，提醒仅在App打开时弹出。
+          </Text>
+        </View>
+      )}
       <FlatList
         data={sortedReminders}
         keyExtractor={(item) => item.id}
@@ -112,7 +119,7 @@ export default function RemindersScreen({ navigation }) {
                     {item.title}
                   </Text>
                   <Text style={styles.reminderPet}>
-                    {pet?.name || 'Unknown'} • {item.frequency}
+                    {pet?.name || '未知'} • {item.frequency}
                   </Text>
                   <View style={styles.dateTimeRow}>
                     <Ionicons
@@ -172,7 +179,7 @@ export default function RemindersScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -259,5 +266,18 @@ const styles = StyleSheet.create({
     color: theme.colors.textLight,
     fontSize: theme.fontSize.md,
     marginBottom: theme.spacing.xxl,
+  },
+  expoGoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.warning + '20',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    gap: 6,
+  },
+  expoGoBannerText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.warning,
+    flex: 1,
   },
 });

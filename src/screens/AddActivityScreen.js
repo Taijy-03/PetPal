@@ -8,24 +8,23 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useApp } from '../context/AppContext';
+import { useApp, useTheme } from '../context/AppContext';
 import {
   FormInput,
   FormDateInput,
   FormButton,
   ChipGroup,
 } from '../components/FormElements';
-import { LightTheme } from '../theme/theme';
 import { generateId, ACTIVITY_TYPES } from '../utils/helpers';
-
-const theme = LightTheme;
 
 export default function AddActivityScreen({ navigation, route }) {
   const { petId } = route.params;
   const { addActivityRecord, pets } = useApp();
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const pet = pets.find((p) => p.id === petId);
 
-  const [type, setType] = useState('walk');
+  const [type, setType] = useState('play');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(
     new Date().toLocaleTimeString('en-US', {
@@ -56,7 +55,7 @@ export default function AddActivityScreen({ navigation, route }) {
       await addActivityRecord(activity);
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save activity.');
+      Alert.alert('错误', '保存活动失败。');
     }
   };
 
@@ -71,11 +70,11 @@ export default function AddActivityScreen({ navigation, route }) {
       >
         <View style={styles.petBanner}>
           <Text style={styles.petBannerText}>
-            🏃 Log Activity for {pet?.name || 'Pet'}
+            🐱 为 {pet?.name || '猫咪'} 记录活动
           </Text>
         </View>
 
-        <Text style={styles.label}>Activity Type</Text>
+        <Text style={styles.label}>活动类型</Text>
         <ChipGroup
           options={ACTIVITY_TYPES}
           value={type}
@@ -86,14 +85,14 @@ export default function AddActivityScreen({ navigation, route }) {
         <View style={styles.row}>
           <View style={styles.flex}>
             <FormDateInput
-              label="Date"
+              label="日期"
               value={date}
               onChange={setDate}
             />
           </View>
           <View style={styles.flex}>
             <FormInput
-              label="Time"
+              label="时间"
               value={time}
               onChangeText={setTime}
               placeholder="HH:MM"
@@ -105,7 +104,7 @@ export default function AddActivityScreen({ navigation, route }) {
         <View style={styles.row}>
           <View style={styles.flex}>
             <FormInput
-              label="Duration (min)"
+              label="时长 (分钟)"
               value={duration}
               onChangeText={setDuration}
               placeholder="30"
@@ -115,7 +114,7 @@ export default function AddActivityScreen({ navigation, route }) {
           </View>
           <View style={styles.flex}>
             <FormInput
-              label="Distance (km)"
+              label="距离 (km)"
               value={distance}
               onChangeText={setDistance}
               placeholder="2.5"
@@ -126,21 +125,21 @@ export default function AddActivityScreen({ navigation, route }) {
         </View>
 
         <FormInput
-          label="Notes"
+          label="备注"
           value={notes}
           onChangeText={setNotes}
-          placeholder="Any notes about this activity..."
+          placeholder="关于这次活动的备注..."
           multiline
         />
 
         <FormButton
-          title="Log Activity"
+          title="保存活动"
           onPress={handleSave}
           icon="checkmark-circle"
           variant="secondary"
         />
         <FormButton
-          title="Cancel"
+          title="取消"
           onPress={() => navigation.goBack()}
           variant="outline"
         />
@@ -149,7 +148,7 @@ export default function AddActivityScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -159,12 +158,12 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
   },
   petBanner: {
-    backgroundColor: '#45B7D120',
+    backgroundColor: '#E8A0BF20',
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.lg,
     borderLeftWidth: 3,
-    borderLeftColor: '#45B7D1',
+    borderLeftColor: '#E8A0BF',
   },
   petBannerText: {
     fontSize: theme.fontSize.lg,

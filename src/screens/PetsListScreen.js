@@ -8,15 +8,14 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useApp } from '../context/AppContext';
+import { useApp, useTheme } from '../context/AppContext';
 import PetCard from '../components/PetCard';
 import EmptyState from '../components/EmptyState';
-import { LightTheme } from '../theme/theme';
-
-const theme = LightTheme;
 
 export default function PetsListScreen({ navigation }) {
   const { pets, removePet, selectPet } = useApp();
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const handlePetPress = (pet) => {
     selectPet(pet);
@@ -24,22 +23,22 @@ export default function PetsListScreen({ navigation }) {
   };
 
   const handleLongPress = (pet) => {
-    Alert.alert(pet.name, 'Choose an action', [
+    Alert.alert(pet.name, '选择操作', [
       {
-        text: 'Edit',
+        text: '编辑',
         onPress: () => navigation.navigate('EditPet', { pet }),
       },
       {
-        text: 'Delete',
+        text: '删除',
         style: 'destructive',
         onPress: () => {
           Alert.alert(
-            'Delete Pet',
-            `Are you sure you want to delete ${pet.name}?`,
+            '删除猫咪',
+            `确定要删除 ${pet.name} 吗？`,
             [
-              { text: 'Cancel', style: 'cancel' },
+              { text: '取消', style: 'cancel' },
               {
-                text: 'Delete',
+                text: '删除',
                 style: 'destructive',
                 onPress: () => removePet(pet.id),
               },
@@ -47,7 +46,7 @@ export default function PetsListScreen({ navigation }) {
           );
         },
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: '取消', style: 'cancel' },
     ]);
   };
 
@@ -55,10 +54,10 @@ export default function PetsListScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <EmptyState
-          emoji="🐾"
-          title="No Pets Yet"
-          message="Add your first pet to get started tracking their health and activities."
-          actionLabel="Add Pet"
+          emoji="🐱"
+          title="还没有猫咪"
+          message="添加你的第一只猫咪，开始记录它的健康和活动吧~"
+          actionLabel="添加猫咪"
           onAction={() => navigation.navigate('AddPet')}
         />
       </View>
@@ -91,7 +90,7 @@ export default function PetsListScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

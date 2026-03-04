@@ -7,12 +7,59 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LightTheme } from '../theme/theme';
+import { useTheme } from '../context/AppContext';
 import { getPetTypeIcon, calculateAge } from '../utils/helpers';
 
-const theme = LightTheme;
+const BREED_LABELS = {
+  ragdoll: '布偶猫',
+  british_shorthair: '英短',
+  american_shorthair: '美短',
+  persian: '波斯猫',
+  siamese: '暹罗猫',
+  maine_coon: '缅因猫',
+  scottish_fold: '折耳猫',
+  russian_blue: '蓝猫',
+  bombay: '孟买猫',
+  bengal: '豹猫',
+  abyssinian: '阿比',
+  birman: '伯曼猫',
+  burmese: '缅甸猫',
+  sphynx: '无毛猫',
+  exotic_shorthair: '加菲猫',
+  american_curl: '美卷',
+  ragamuffin: '褴褛猫',
+  devon_rex: '德文卷毛',
+  cornish_rex: '柯尼斯',
+  tonkinese: '东奇尼',
+  american_bobtail: '美短尾',
+  japanese_bobtail: '日短尾',
+  egyptian_mau: '埃及猫',
+  highland_fold: '高地折耳',
+  chartreux: '沙特尔',
+  norwegian_forest: '挪森林',
+  siberian: '西伯利亚',
+  turkish_van: '梵猫',
+  turkish_angora: '安哥拉',
+  chinese_domestic: '田园猫',
+  orange_tabby: '橘猫',
+  calico: '三花猫',
+  tuxedo: '奶牛猫',
+  tabby: '狸花猫',
+  white_cat: '白猫',
+  black_cat: '黑猫',
+  mixed: '混血猫',
+  other: '其他',
+};
+
+function getBreedLabel(breed) {
+  if (!breed) return '猫咪';
+  return BREED_LABELS[breed] || breed;
+}
 
 export default function PetCard({ pet, onPress, onLongPress, compact = false }) {
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+
   if (compact) {
     return (
       <TouchableOpacity
@@ -37,6 +84,11 @@ export default function PetCard({ pet, onPress, onLongPress, compact = false }) 
     );
   }
 
+  const genderSymbol = pet.gender === 'male' ? '♂' : pet.gender === 'female' ? '♀' : null;
+  const genderColor = pet.gender === 'male' ? '#3B82F6' : '#EC4899';
+  const breedLabel = getBreedLabel(pet.breed);
+  const age = pet.birthDate ? calculateAge(pet.birthDate) : null;
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -45,6 +97,7 @@ export default function PetCard({ pet, onPress, onLongPress, compact = false }) 
       activeOpacity={0.7}
     >
       <View style={styles.cardContent}>
+        {/* Photo */}
         <View style={styles.imageContainer}>
           {pet.photo ? (
             <Image source={{ uri: pet.photo }} style={styles.image} />
@@ -53,61 +106,54 @@ export default function PetCard({ pet, onPress, onLongPress, compact = false }) 
               <Text style={styles.emoji}>{getPetTypeIcon(pet.type)}</Text>
             </View>
           )}
-        </View>
-        <View style={styles.info}>
-          <Text style={styles.name}>{pet.name}</Text>
-          <Text style={styles.breed}>
-            {pet.breed || pet.type?.charAt(0).toUpperCase() + pet.type?.slice(1)}
-          </Text>
-          <View style={styles.detailsRow}>
-            {pet.birthDate && (
-              <View style={styles.detail}>
-                <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
-                <Text style={styles.detailText}>{calculateAge(pet.birthDate)}</Text>
-              </View>
-            )}
-            {pet.weight && (
-              <View style={styles.detail}>
-                <Ionicons name="fitness-outline" size={14} color={theme.colors.textSecondary} />
-                <Text style={styles.detailText}>{pet.weight} {pet.weightUnit || 'kg'}</Text>
-              </View>
-            )}
-          </View>
-          {pet.gender && (
-            <View style={styles.genderBadge}>
-              <Ionicons
-                name={pet.gender === 'male' ? 'male' : 'female'}
-                size={12}
-                color={pet.gender === 'male' ? '#3498DB' : '#E91E63'}
-              />
-              <Text
-                style={[
-                  styles.genderText,
-                  { color: pet.gender === 'male' ? '#3498DB' : '#E91E63' },
-                ]}
-              >
-                {pet.gender.charAt(0).toUpperCase() + pet.gender.slice(1)}
-              </Text>
+          {genderSymbol && (
+            <View style={[styles.genderDot, { backgroundColor: genderColor }]}>
+              <Text style={styles.genderDotText}>{genderSymbol}</Text>
             </View>
           )}
         </View>
-        <Ionicons name="chevron-forward" size={20} color={theme.colors.textLight} />
+
+        {/* Info */}
+        <View style={styles.info}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>{pet.name}</Text>
+          </View>
+          <Text style={styles.breed} numberOfLines={1}>{breedLabel}</Text>
+
+          <View style={styles.tagsRow}>
+            {age && (
+              <View style={styles.tag}>
+                <Ionicons name="calendar-outline" size={12} color={theme.colors.primary} />
+                <Text style={styles.tagText}>{age}</Text>
+              </View>
+            )}
+            {pet.weight && (
+              <View style={styles.tag}>
+                <Ionicons name="fitness-outline" size={12} color={theme.colors.primary} />
+                <Text style={styles.tagText}>{pet.weight} {pet.weightUnit || 'kg'}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Arrow */}
+        <Ionicons name="chevron-forward" size={18} color={theme.colors.textLight} />
       </View>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.xl,
     marginHorizontal: theme.spacing.md,
-    marginVertical: theme.spacing.sm,
+    marginVertical: theme.spacing.xs,
     padding: theme.spacing.md,
     shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 3,
   },
   cardContent: {
@@ -116,59 +162,78 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     marginRight: theme.spacing.md,
+    position: 'relative',
   },
   image: {
-    width: 70,
-    height: 70,
-    borderRadius: theme.borderRadius.lg,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
   },
   placeholder: {
-    width: 70,
-    height: 70,
-    borderRadius: theme.borderRadius.lg,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     backgroundColor: theme.colors.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emoji: {
-    fontSize: 32,
+    fontSize: 28,
+  },
+  genderDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.surface,
+  },
+  genderDotText: {
+    fontSize: 10,
+    color: '#FFF',
+    fontWeight: '700',
   },
   info: {
     flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
   },
   name: {
     fontSize: theme.fontSize.xl,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
-    marginBottom: 2,
   },
   breed: {
-    fontSize: theme.fontSize.md,
+    fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.xs,
   },
-  detailsRow: {
+  tagsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
   },
-  detail: {
+  tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
+    backgroundColor: `${theme.colors.primary}15`,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 3,
+    borderRadius: theme.borderRadius.round,
   },
-  detailText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
-  genderBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: theme.spacing.xs,
-  },
-  genderText: {
-    fontSize: theme.fontSize.sm,
+  tagText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.primaryDark || theme.colors.primary,
     fontWeight: theme.fontWeight.medium,
   },
   // Compact styles

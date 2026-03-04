@@ -10,26 +10,25 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useApp } from '../context/AppContext';
-import { LightTheme } from '../theme/theme';
-
-const theme = LightTheme;
+import { useApp, useTheme } from '../context/AppContext';
 
 export default function SettingsScreen({ navigation }) {
   const { settings, updateSettings, clearAll, pets, healthRecords, activities, reminders } = useApp();
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const handleClearData = () => {
     Alert.alert(
-      'Clear All Data',
-      'This will permanently delete all your pets, health records, activities, and reminders. This action cannot be undone.',
+      '清除所有数据',
+      '这将永久删除所有猫咪、健康记录、活动和提醒。此操作不可撤销。',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: '取消', style: 'cancel' },
         {
-          text: 'Clear Everything',
+          text: '清除所有',
           style: 'destructive',
           onPress: () => {
             clearAll();
-            Alert.alert('Done', 'All data has been cleared.');
+            Alert.alert('完成', '所有数据已清除。');
           },
         },
       ]
@@ -46,33 +45,43 @@ export default function SettingsScreen({ navigation }) {
       settings,
     };
     Alert.alert(
-      'Export Data',
-      `Your data summary:\n• ${pets.length} Pets\n• ${healthRecords.length} Health Records\n• ${activities.length} Activities\n• ${reminders.length} Reminders\n\nData export feature available in full version.`
+      '导出数据',
+      `数据概览：\n• ${pets.length} 只猫咪\n• ${healthRecords.length} 条健康记录\n• ${activities.length} 条活动\n• ${reminders.length} 条提醒\n\n完整版将支持数据导出功能。`
     );
   };
+
+  const StatItem = ({ icon, color, label, value }) => (
+    <View style={styles.statItem}>
+      <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
+        <Ionicons name={icon} size={24} color={color} />
+      </View>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* App Info */}
       <View style={styles.appInfo}>
-        <Text style={styles.appIcon}>🐾</Text>
-        <Text style={styles.appName}>PetPal</Text>
-        <Text style={styles.appVersion}>Version 1.0.0</Text>
+        <Text style={styles.appIcon}>🐱</Text>
+        <Text style={styles.appName}>喵记</Text>
+        <Text style={styles.appVersion}>版本 1.0.0</Text>
       </View>
 
       {/* General Settings */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>General</Text>
+        <Text style={styles.sectionTitle}>通用</Text>
 
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <View style={[styles.settingIcon, { backgroundColor: '#34495E20' }]}>
-              <Ionicons name="moon" size={20} color="#34495E" />
+            <View style={[styles.settingIcon, { backgroundColor: '#BA90C620' }]}>
+              <Ionicons name="moon" size={20} color="#BA90C6" />
             </View>
             <View>
-              <Text style={styles.settingLabel}>Dark Mode</Text>
+              <Text style={styles.settingLabel}>深色模式</Text>
               <Text style={styles.settingDescription}>
-                Toggle dark appearance
+                切换深色外观
               </Text>
             </View>
           </View>
@@ -91,13 +100,13 @@ export default function SettingsScreen({ navigation }) {
 
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <View style={[styles.settingIcon, { backgroundColor: '#E74C3C20' }]}>
-              <Ionicons name="notifications" size={20} color="#E74C3C" />
+            <View style={[styles.settingIcon, { backgroundColor: '#E8A0BF20' }]}>
+              <Ionicons name="notifications" size={20} color="#E8A0BF" />
             </View>
             <View>
-              <Text style={styles.settingLabel}>Notifications</Text>
+              <Text style={styles.settingLabel}>通知</Text>
               <Text style={styles.settingDescription}>
-                Enable push notifications
+                启用推送通知
               </Text>
             </View>
           </View>
@@ -121,17 +130,17 @@ export default function SettingsScreen({ navigation }) {
 
       {/* Data Management */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data</Text>
+        <Text style={styles.sectionTitle}>数据</Text>
 
         <TouchableOpacity style={styles.settingItem} onPress={handleExportData}>
           <View style={styles.settingLeft}>
-            <View style={[styles.settingIcon, { backgroundColor: '#3498DB20' }]}>
-              <Ionicons name="download-outline" size={20} color="#3498DB" />
+            <View style={[styles.settingIcon, { backgroundColor: '#9DC4E020' }]}>
+              <Ionicons name="download-outline" size={20} color="#9DC4E0" />
             </View>
             <View>
-              <Text style={styles.settingLabel}>Export Data</Text>
+              <Text style={styles.settingLabel}>导出数据</Text>
               <Text style={styles.settingDescription}>
-                Download your pet data
+                下载你的猫咪数据
               </Text>
             </View>
           </View>
@@ -144,13 +153,13 @@ export default function SettingsScreen({ navigation }) {
 
         <TouchableOpacity style={styles.settingItem} onPress={handleClearData}>
           <View style={styles.settingLeft}>
-            <View style={[styles.settingIcon, { backgroundColor: '#E74C3C20' }]}>
-              <Ionicons name="trash-outline" size={20} color="#E74C3C" />
+            <View style={[styles.settingIcon, { backgroundColor: '#E88B8B20' }]}>
+              <Ionicons name="trash-outline" size={20} color="#E88B8B" />
             </View>
             <View>
-              <Text style={styles.settingLabel}>Clear All Data</Text>
+              <Text style={styles.settingLabel}>清除所有数据</Text>
               <Text style={styles.settingDescription}>
-                Delete all pets and records
+                删除所有猫咪和记录
               </Text>
             </View>
           </View>
@@ -164,30 +173,30 @@ export default function SettingsScreen({ navigation }) {
 
       {/* Statistics */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Statistics</Text>
+        <Text style={styles.sectionTitle}>统计</Text>
         <View style={styles.statsGrid}>
           <StatItem
             icon="paw"
-            color="#FF6B6B"
-            label="Total Pets"
+            color="#E8A0BF"
+            label="猫咪总数"
             value={pets.length}
           />
           <StatItem
             icon="medkit"
-            color="#4ECDC4"
-            label="Health Records"
+            color="#BA90C6"
+            label="健康记录"
             value={healthRecords.length}
           />
           <StatItem
             icon="footsteps"
-            color="#45B7D1"
-            label="Activities"
+            color="#9DC4E0"
+            label="活动"
             value={activities.length}
           />
           <StatItem
             icon="alarm"
-            color="#96CEB4"
-            label="Reminders"
+            color="#8BC7A3"
+            label="提醒"
             value={reminders.length}
           />
         </View>
@@ -195,17 +204,17 @@ export default function SettingsScreen({ navigation }) {
 
       {/* About */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
+        <Text style={styles.sectionTitle}>关于</Text>
 
         <View style={styles.settingItem}>
           <View style={styles.settingLeft}>
-            <View style={[styles.settingIcon, { backgroundColor: '#9B59B620' }]}>
-              <Ionicons name="heart" size={20} color="#9B59B6" />
+            <View style={[styles.settingIcon, { backgroundColor: '#E8A0BF20' }]}>
+              <Ionicons name="heart" size={20} color="#E8A0BF" />
             </View>
             <View>
-              <Text style={styles.settingLabel}>Made with Love</Text>
+              <Text style={styles.settingLabel}>用爱打造</Text>
               <Text style={styles.settingDescription}>
-                For pet lovers everywhere
+                专为爱猫人士打造 🐱
               </Text>
             </View>
           </View>
@@ -217,19 +226,7 @@ export default function SettingsScreen({ navigation }) {
   );
 }
 
-function StatItem({ icon, color, label, value }) {
-  return (
-    <View style={styles.statItem}>
-      <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={24} color={color} />
-      </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,

@@ -10,9 +10,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LightTheme } from '../theme/theme';
-
-const theme = LightTheme;
+import { useTheme } from '../context/AppContext';
 
 // Custom Text Input
 export function FormInput({
@@ -26,6 +24,8 @@ export function FormInput({
   error,
   required = false,
 }) {
+  const theme = useTheme();
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
   return (
     <View style={formStyles.inputGroup}>
       {label && (
@@ -60,8 +60,10 @@ export function FormInput({
 }
 
 // Option Picker (like a select dropdown)
-export function FormPicker({ label, options, value, onChange, required = false }) {
+export function FormPicker({ label, options, value, onChange, required = false, error, compact = false }) {
   const [modalVisible, setModalVisible] = useState(false);
+  const theme = useTheme();
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
   const selected = options.find((o) => o.value === value);
 
   return (
@@ -73,7 +75,7 @@ export function FormPicker({ label, options, value, onChange, required = false }
         </Text>
       )}
       <TouchableOpacity
-        style={formStyles.pickerButton}
+        style={[formStyles.pickerButton, compact && formStyles.pickerButtonCompact, error && formStyles.inputError]}
         onPress={() => setModalVisible(true)}
       >
         <Text
@@ -82,7 +84,7 @@ export function FormPicker({ label, options, value, onChange, required = false }
             !selected && formStyles.pickerPlaceholder,
           ]}
         >
-          {selected ? `${selected.icon || ''} ${selected.label}` : 'Select...'}
+          {selected ? `${selected.icon || ''} ${selected.label}` : '请选择...'}
         </Text>
         <Ionicons
           name="chevron-down"
@@ -104,7 +106,7 @@ export function FormPicker({ label, options, value, onChange, required = false }
         >
           <View style={formStyles.modalContent}>
             <View style={formStyles.modalHeader}>
-              <Text style={formStyles.modalTitle}>Select {label}</Text>
+              <Text style={formStyles.modalTitle}>选择{label}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color={theme.colors.text} />
               </TouchableOpacity>
@@ -146,6 +148,7 @@ export function FormPicker({ label, options, value, onChange, required = false }
           </View>
         </TouchableOpacity>
       </Modal>
+      {error && <Text style={formStyles.errorText}>{error}</Text>}
     </View>
   );
 }
@@ -155,9 +158,52 @@ export function FormDateInput({
   label,
   value,
   onChange,
-  placeholder = 'YYYY-MM-DD',
+  placeholder = '请输入 例: 2023-01-15',
   required = false,
+  error,
+  isWarning = false,
+  maxDate,
 }) {
+  const theme = useTheme();
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
+
+  const handleDateChange = (text) => {
+    // Only allow digits and dashes
+    let cleaned = text.replace(/[^0-9-]/g, '');
+    
+    // Auto-format: insert dashes at correct positions
+    // Remove all dashes first, then re-insert
+    const digitsOnly = cleaned.replace(/-/g, '');
+    let formatted = '';
+    for (let i = 0; i < digitsOnly.length && i < 8; i++) {
+      if (i === 4 || i === 6) {
+        formatted += '-';
+      }
+      formatted += digitsOnly[i];
+    }
+    
+    onChange(formatted);
+  };
+
+  // Calculate helper text showing age
+  const getAgeHint = () => {
+    if (!value || value.length !== 10) return null;
+    const parsed = new Date(value);
+    if (isNaN(parsed.getTime())) return null;
+    const now = new Date();
+    if (parsed > now) return null;
+    const diffMs = now - parsed;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays < 30) return `约 ${diffDays} 天`;
+    const diffMonths = Math.floor(diffDays / 30.44);
+    if (diffMonths < 12) return `约 ${diffMonths} 个月`;
+    const years = Math.floor(diffMonths / 12);
+    const months = diffMonths % 12;
+    return months > 0 ? `约 ${years} 岁 ${months} 个月` : `约 ${years} 岁`;
+  };
+
+  const ageHint = getAgeHint();
+
   return (
     <View style={formStyles.inputGroup}>
       {label && (
@@ -166,7 +212,7 @@ export function FormDateInput({
           {required && <Text style={formStyles.required}> *</Text>}
         </Text>
       )}
-      <View style={formStyles.inputContainer}>
+      <View style={[formStyles.inputContainer, error && !isWarning && formStyles.inputError, error && isWarning && formStyles.inputWarning]}>
         <Ionicons
           name="calendar-outline"
           size={20}
@@ -176,12 +222,17 @@ export function FormDateInput({
         <TextInput
           style={formStyles.input}
           value={value}
-          onChangeText={onChange}
+          onChangeText={handleDateChange}
           placeholder={placeholder}
           placeholderTextColor={theme.colors.textLight}
-          keyboardType="default"
+          keyboardType="number-pad"
+          maxLength={10}
         />
       </View>
+      {error && <Text style={[formStyles.errorText, isWarning && formStyles.warningText]}>{error}</Text>}
+      {ageHint && !error && (
+        <Text style={formStyles.hintText}>🐱 {ageHint}</Text>
+      )}
     </View>
   );
 }
@@ -195,6 +246,8 @@ export function FormButton({
   disabled = false,
   loading = false,
 }) {
+  const theme = useTheme();
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
   const buttonStyle = [
     formStyles.button,
     variant === 'secondary' && formStyles.buttonSecondary,
@@ -222,13 +275,15 @@ export function FormButton({
           color={variant === 'outline' ? theme.colors.primary : '#FFF'}
         />
       )}
-      <Text style={textStyle}>{loading ? 'Please wait...' : title}</Text>
+      <Text style={textStyle}>{loading ? '请稍候...' : title}</Text>
     </TouchableOpacity>
   );
 }
 
 // Section Header
 export function SectionHeader({ title, actionLabel, onAction }) {
+  const theme = useTheme();
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
   return (
     <View style={formStyles.sectionHeader}>
       <Text style={formStyles.sectionTitle}>{title}</Text>
@@ -243,6 +298,8 @@ export function SectionHeader({ title, actionLabel, onAction }) {
 
 // Chip / Tag selector
 export function ChipGroup({ options, value, onChange, multiSelect = false }) {
+  const theme = useTheme();
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
   const handlePress = (optionValue) => {
     if (multiSelect) {
       const newValues = value.includes(optionValue)
@@ -284,7 +341,7 @@ export function ChipGroup({ options, value, onChange, multiSelect = false }) {
   );
 }
 
-const formStyles = StyleSheet.create({
+const createFormStyles = (theme) => StyleSheet.create({
   inputGroup: {
     marginBottom: theme.spacing.md,
   },
@@ -309,6 +366,9 @@ const formStyles = StyleSheet.create({
   inputError: {
     borderColor: theme.colors.error,
   },
+  inputWarning: {
+    borderColor: theme.colors.warning || '#E8A317',
+  },
   inputIcon: {
     marginRight: theme.spacing.sm,
   },
@@ -327,6 +387,14 @@ const formStyles = StyleSheet.create({
     color: theme.colors.error,
     marginTop: theme.spacing.xs,
   },
+  warningText: {
+    color: theme.colors.warning || '#E8A317',
+  },
+  hintText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.primary,
+    marginTop: theme.spacing.xs,
+  },
   // Picker
   pickerButton: {
     flexDirection: 'row',
@@ -338,6 +406,9 @@ const formStyles = StyleSheet.create({
     paddingVertical: 14,
     borderWidth: 1,
     borderColor: theme.colors.border,
+  },
+  pickerButtonCompact: {
+    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
   },
   pickerText: {
     fontSize: theme.fontSize.lg,

@@ -9,10 +9,11 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useApp } from '../context/AppContext';
+import { useApp, useTheme } from '../context/AppContext';
 import {
   FormInput,
   FormPicker,
@@ -20,30 +21,75 @@ import {
   FormButton,
   ChipGroup,
 } from '../components/FormElements';
-import { LightTheme } from '../theme/theme';
-import { generateId, PET_TYPES } from '../utils/helpers';
-
-const theme = LightTheme;
+import { generateId } from '../utils/helpers';
 
 const GENDER_OPTIONS = [
-  { label: 'Male', value: 'male', icon: '♂️' },
-  { label: 'Female', value: 'female', icon: '♀️' },
+  { label: '♂️', value: 'male' },
+  { label: '♀️', value: 'female' },
+];
+
+const CAT_BREEDS = [
+  { label: '布偶猫', value: 'ragdoll' },
+  { label: '英国短毛猫', value: 'british_shorthair' },
+  { label: '美国短毛猫', value: 'american_shorthair' },
+  { label: '波斯猫', value: 'persian' },
+  { label: '暇罗猫', value: 'siamese' },
+  { label: '缅因猫', value: 'maine_coon' },
+  { label: '苏格兰折耳猫', value: 'scottish_fold' },
+  { label: '俄罗斯蓝猫', value: 'russian_blue' },
+  { label: '孟买猫', value: 'bombay' },
+  { label: '孟加拉豹猫', value: 'bengal' },
+  { label: '阿比西尼亚猫', value: 'abyssinian' },
+  { label: '挥罗猫', value: 'birman' },
+  { label: '缅甸猫', value: 'burmese' },
+  { label: '加菲猫', value: 'sphynx' },
+  { label: '异国短毛猫 (加菲波斯)', value: 'exotic_shorthair' },
+  { label: '美国卷毛猫', value: 'american_curl' },
+  { label: '南布偶猫', value: 'ragamuffin' },
+  { label: '潮英短毛猫', value: 'devon_rex' },
+  { label: '柯尼斯卷毛猫', value: 'cornish_rex' },
+  { label: '欧洲缅甸猫', value: 'tonkinese' },
+  { label: '美国短尾猫', value: 'american_bobtail' },
+  { label: '日本短尾猫', value: 'japanese_bobtail' },
+  { label: '挨及猫', value: 'egyptian_mau' },
+  { label: '荷兰猫 (荷兰卷耳)', value: 'highland_fold' },
+  { label: '布偿猫', value: 'chartreux' },
+  { label: '挪威森林猫', value: 'norwegian_forest' },
+  { label: '西伯利亚猫', value: 'siberian' },
+  { label: '土耳其梵猫', value: 'turkish_van' },
+  { label: '土耳其安哥拉猫', value: 'turkish_angora' },
+  { label: '中华田园猫', value: 'chinese_domestic' },
+  { label: '橘猫', value: 'orange_tabby' },
+  { label: '三花猫', value: 'calico' },
+  { label: '奶牛猫', value: 'tuxedo' },
+  { label: '狸花猫', value: 'tabby' },
+  { label: '白猫', value: 'white_cat' },
+  { label: '黑猫', value: 'black_cat' },
+  { label: '混血猫', value: 'mixed' },
+  { label: '其他', value: 'other' },
 ];
 
 export default function AddEditPetScreen({ navigation, route }) {
   const { addPet, updatePet, pets } = useApp();
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const editingPet = route?.params?.pet;
   const isEditing = !!editingPet;
 
   const [name, setName] = useState(editingPet?.name || '');
-  const [type, setType] = useState(editingPet?.type || 'dog');
   const [breed, setBreed] = useState(editingPet?.breed || '');
   const [gender, setGender] = useState(editingPet?.gender || '');
   const [birthDate, setBirthDate] = useState(editingPet?.birthDate || '');
   const [weight, setWeight] = useState(editingPet?.weight?.toString() || '');
   const [weightUnit, setWeightUnit] = useState(editingPet?.weightUnit || 'kg');
   const [color, setColor] = useState(editingPet?.color || '');
+  const [hasMicrochip, setHasMicrochip] = useState(!!editingPet?.microchip);
   const [microchip, setMicrochip] = useState(editingPet?.microchip || '');
+  const [customBreed, setCustomBreed] = useState(
+    editingPet?.breed && !CAT_BREEDS.find(b => b.value === editingPet?.breed)
+      ? editingPet.breed
+      : editingPet?.customBreed || ''
+  );
   const [notes, setNotes] = useState(editingPet?.notes || '');
   const [photo, setPhoto] = useState(editingPet?.photo || null);
   const [photos, setPhotos] = useState(editingPet?.photos || []);
@@ -55,8 +101,8 @@ export default function AddEditPetScreen({ navigation, route }) {
 
     if (permissionResult.granted === false) {
       Alert.alert(
-        'Permission Required',
-        'Please allow access to your photo library.'
+        '需要权限',
+        '请允许访问您的相册。'
       );
       return;
     }
@@ -78,8 +124,8 @@ export default function AddEditPetScreen({ navigation, route }) {
 
     if (permissionResult.granted === false) {
       Alert.alert(
-        'Permission Required',
-        'Please allow access to your camera.'
+        '需要权限',
+        '请允许使用相机。'
       );
       return;
     }
@@ -96,22 +142,45 @@ export default function AddEditPetScreen({ navigation, route }) {
   };
 
   const showImageOptions = () => {
-    Alert.alert('Add Photo', 'Choose an option', [
-      { text: 'Camera', onPress: takePhoto },
-      { text: 'Gallery', onPress: pickImage },
-      ...(photo ? [{ text: 'Remove Photo', style: 'destructive', onPress: () => setPhoto(null) }] : []),
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert('添加照片', '请选择方式', [
+      { text: '拍照', onPress: takePhoto },
+      { text: '从相册选择', onPress: pickImage },
+      ...(photo ? [{ text: '删除照片', style: 'destructive', onPress: () => setPhoto(null) }] : []),
+      { text: '取消', style: 'cancel' },
     ]);
+  };
+
+  const validateBirthDate = (dateStr) => {
+    if (!dateStr) return null; // optional field
+    if (dateStr.length !== 10) return '请输入完整日期，格式: YYYY-MM-DD';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return '日期格式错误，请使用 YYYY-MM-DD';
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return '日期包含无效字符';
+    if (month < 1 || month > 12) return '月份必须在 1-12 之间';
+    const daysInMonth = new Date(year, month, 0).getDate();
+    if (day < 1 || day > daysInMonth) return `${month}月最多有 ${daysInMonth} 天`;
+    const date = new Date(year, month - 1, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (date > today) return '出生日期不能是未来的日期';
+    if (year < 1980) return '日期不太合理，请检查年份';
+    return null;
   };
 
   const validate = () => {
     const newErrors = {};
-    if (!name.trim()) newErrors.name = 'Pet name is required';
-    if (!type) newErrors.type = 'Pet type is required';
+    if (!name.trim()) newErrors.name = '请输入猫咪名字';
     if (weight && isNaN(parseFloat(weight)))
-      newErrors.weight = 'Invalid weight';
-    if (birthDate && isNaN(Date.parse(birthDate)))
-      newErrors.birthDate = 'Invalid date format (use YYYY-MM-DD)';
+      newErrors.weight = '请输入有效的体重';
+    const birthDateError = validateBirthDate(birthDate);
+    if (birthDateError) newErrors.birthDate = birthDateError;
+    if (breed === 'other' && !customBreed.trim())
+      newErrors.customBreed = '请输入自定义品种名称';
+    if (hasMicrochip && !microchip.trim())
+      newErrors.microchip = '请输入芯片号或关闭芯片号开关';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -122,14 +191,15 @@ export default function AddEditPetScreen({ navigation, route }) {
     const petData = {
       id: editingPet?.id || generateId(),
       name: name.trim(),
-      type,
-      breed: breed.trim(),
+      type: 'cat',
+      breed: breed === 'other' ? customBreed.trim() : breed.trim(),
+      customBreed: breed === 'other' ? customBreed.trim() : '',
       gender,
       birthDate: birthDate || null,
       weight: weight ? parseFloat(weight) : null,
       weightUnit,
       color: color.trim(),
-      microchip: microchip.trim(),
+      microchip: hasMicrochip ? microchip.trim() : '',
       notes: notes.trim(),
       photo,
       photos: photos || [],
@@ -145,7 +215,7 @@ export default function AddEditPetScreen({ navigation, route }) {
       }
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save pet. Please try again.');
+      Alert.alert('错误', '保存失败，请重试。');
     }
   };
 
@@ -173,7 +243,7 @@ export default function AddEditPetScreen({ navigation, route }) {
                 size={40}
                 color={theme.colors.textLight}
               />
-              <Text style={styles.photoText}>Add Photo</Text>
+              <Text style={styles.photoText}>添加照片</Text>
             </View>
           )}
           <View style={styles.editBadge}>
@@ -184,28 +254,38 @@ export default function AddEditPetScreen({ navigation, route }) {
         {/* Form */}
         <View style={styles.form}>
           <FormInput
-            label="Pet Name"
+            label="猫咪名字"
             value={name}
             onChangeText={setName}
-            placeholder="Enter pet name"
+            placeholder="给猫咪取个名字吧"
             icon="paw-outline"
             required
             error={errors.name}
           />
 
-          <Text style={styles.label}>Pet Type *</Text>
-          <ChipGroup options={PET_TYPES} value={type} onChange={setType} />
-          <View style={{ height: theme.spacing.md }} />
-
-          <FormInput
-            label="Breed"
+          <FormPicker
+            label="品种"
+            options={CAT_BREEDS}
             value={breed}
-            onChangeText={setBreed}
-            placeholder="e.g. Golden Retriever"
-            icon="information-circle-outline"
+            onChange={(val) => {
+              setBreed(val);
+              if (val !== 'other') setCustomBreed('');
+            }}
           />
 
-          <Text style={styles.label}>Gender</Text>
+          {breed === 'other' && (
+            <FormInput
+              label="自定义品种"
+              value={customBreed}
+              onChangeText={setCustomBreed}
+              placeholder="请输入猫咪品种"
+              icon="create-outline"
+              required
+              error={errors.customBreed}
+            />
+          )}
+
+          <Text style={styles.label}>性别</Text>
           <ChipGroup
             options={GENDER_OPTIONS}
             value={gender}
@@ -214,16 +294,16 @@ export default function AddEditPetScreen({ navigation, route }) {
           <View style={{ height: theme.spacing.md }} />
 
           <FormDateInput
-            label="Birth Date"
+            label="出生日期"
             value={birthDate}
             onChange={setBirthDate}
-            placeholder="YYYY-MM-DD"
+            error={errors.birthDate}
           />
 
           <View style={styles.row}>
             <View style={styles.flex}>
               <FormInput
-                label="Weight"
+                label="体重"
                 value={weight}
                 onChangeText={setWeight}
                 placeholder="0.0"
@@ -234,51 +314,74 @@ export default function AddEditPetScreen({ navigation, route }) {
             </View>
             <View style={styles.unitPicker}>
               <FormPicker
-                label="Unit"
+                label="单位"
                 options={[
                   { label: 'kg', value: 'kg' },
                   { label: 'lbs', value: 'lbs' },
                 ]}
                 value={weightUnit}
                 onChange={setWeightUnit}
+                compact
               />
             </View>
           </View>
 
           <FormInput
-            label="Color / Markings"
+            label="毛色/花纹"
             value={color}
             onChangeText={setColor}
-            placeholder="e.g. Golden, Black & White"
+            placeholder="e.g. 橘色, 黑白双色"
             icon="color-palette-outline"
           />
 
-          <FormInput
-            label="Microchip ID"
-            value={microchip}
-            onChangeText={setMicrochip}
-            placeholder="Enter microchip number"
-            icon="barcode-outline"
-          />
+          <View style={styles.switchRow}>
+            <View style={styles.switchLabelContainer}>
+              <Ionicons name="barcode-outline" size={20} color={theme.colors.textSecondary} />
+              <Text style={styles.switchLabel}>有芯片号</Text>
+            </View>
+            <Switch
+              value={hasMicrochip}
+              onValueChange={(val) => {
+                setHasMicrochip(val);
+                if (!val) {
+                  setMicrochip('');
+                  setErrors(prev => ({ ...prev, microchip: undefined }));
+                }
+              }}
+              trackColor={{ false: theme.colors.border, true: `${theme.colors.primary}60` }}
+              thumbColor={hasMicrochip ? theme.colors.primary : theme.colors.textLight}
+            />
+          </View>
+
+          {hasMicrochip && (
+            <FormInput
+              label="芯片号"
+              value={microchip}
+              onChangeText={setMicrochip}
+              placeholder="输入芯片号码"
+              icon="barcode-outline"
+              error={errors.microchip}
+            />
+          )}
 
           <FormInput
-            label="Notes"
+            label="备注"
             value={notes}
             onChangeText={setNotes}
-            placeholder="Any additional notes about your pet..."
+            placeholder="关于你的猫咪的其他信息..."
             multiline
             icon="document-text-outline"
           />
 
           <FormButton
-            title={isEditing ? 'Update Pet' : 'Add Pet'}
+            title={isEditing ? '更新猫咪' : '添加猫咪'}
             onPress={handleSave}
             icon={isEditing ? 'checkmark-circle' : 'add-circle'}
           />
 
           {isEditing && (
             <FormButton
-              title="Cancel"
+              title="取消"
               onPress={() => navigation.goBack()}
               variant="outline"
             />
@@ -289,7 +392,7 @@ export default function AddEditPetScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -359,5 +462,22 @@ const styles = StyleSheet.create({
   },
   unitPicker: {
     flex: 1,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  switchLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  switchLabel: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
   },
 });

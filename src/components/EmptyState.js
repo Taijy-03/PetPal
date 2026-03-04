@@ -6,9 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LightTheme } from '../theme/theme';
-
-const theme = LightTheme;
+import { useTheme } from '../context/AppContext';
 
 export default function EmptyState({
   icon = 'paw-outline',
@@ -18,6 +16,8 @@ export default function EmptyState({
   actionLabel,
   onAction,
 }) {
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.container}>
       {emoji ? (
@@ -39,7 +39,7 @@ export default function EmptyState({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',

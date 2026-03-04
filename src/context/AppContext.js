@@ -1,5 +1,13 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Alert, AppState } from 'react-native';
 import * as Storage from '../utils/storage';
+import {
+  scheduleReminderNotification,
+  cancelReminderNotification,
+  rescheduleAllReminders,
+  isExpoGo,
+} from '../utils/notifications';
+import { LightTheme, DarkTheme } from '../theme/theme';
 
 const AppContext = createContext();
 
@@ -11,7 +19,7 @@ const initialState = {
   settings: {
     darkMode: false,
     notificationsEnabled: true,
-    defaultPetType: 'dog',
+    defaultPetType: 'cat',
   },
   isLoading: true,
   selectedPet: null,
@@ -160,6 +168,8 @@ function appReducer(state, action) {
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  // Track which reminders have already been alerted (by id) to avoid duplicates
+  const alertedRemindersRef = useRef(new Set());
 
   // Load all data on mount
   useEffect(() => {
@@ -180,11 +190,147 @@ export function AppProvider({ children }) {
         type: actionTypes.LOAD_ALL_DATA,
         payload: { pets, healthRecords, activities, reminders, settings },
       });
+
+      // Auto-deactivate expired one-time reminders
+      if (reminders && reminders.length > 0) {
+        const now = new Date();
+        for (const reminder of reminders) {
+          if (
+            reminder.isActive !== false &&
+            reminder.frequency === 'once' &&
+            new Date(reminder.dateTime) <= now
+          ) {
+            const updated = { ...reminder, isActive: false };
+            await Storage.updateReminder(updated);
+            dispatch({ type: actionTypes.UPDATE_REMINDER, payload: updated });
+          }
+        }
+      }
+
+      // Reschedule all active notifications on app start
+      if (reminders && reminders.length > 0 && pets) {
+        rescheduleAllReminders(reminders, pets);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       dispatch({ type: actionTypes.SET_LOADING, payload: false });
     }
   };
+
+  // ── In-app reminder checker (Expo Go fallback) ──
+  // Since Expo Go doesn't support push notifications in SDK 53+,
+  // we poll every 30s while the app is in the foreground and show
+  // an Alert when a reminder's time has arrived.
+  const getReminderTypeEmoji = useCallback((type) => {
+    const emojis = {
+      feeding: '🐟', play: '🧶', medicine: '💊', vet: '🏥',
+      grooming: '🪮', vaccination: '💉', litter: '🚽', deworming: '🐛', other: '📝',
+    };
+    return emojis[type] || '🔔';
+  }, []);
+
+  const getReminderTypeLabel = useCallback((type) => {
+    const labels = {
+      feeding: '喂食', play: '玩耍', medicine: '吃药', vet: '看医生',
+      grooming: '梳毛', vaccination: '疫苗', litter: '铲屎', deworming: '驱虫', other: '其他',
+    };
+    return labels[type] || '提醒';
+  }, []);
+
+  const checkDueReminders = useCallback(() => {
+    if (!isExpoGo) return; // Native notifications handle this in dev builds
+    const now = new Date();
+    const { reminders, pets } = state;
+
+    for (const reminder of reminders) {
+      if (reminder.isActive === false) continue;
+
+      const reminderDate = new Date(reminder.dateTime);
+      const alertKey = `${reminder.id}`;
+
+      // For one-time reminders: check if it's due (within the last 2 minutes)
+      // For repeating reminders: check if current time matches hour:minute (within 2 min window)
+      let isDue = false;
+
+      if (reminder.frequency === 'once') {
+        const diffMs = now.getTime() - reminderDate.getTime();
+        isDue = diffMs >= 0 && diffMs < 120000; // within 2 minutes
+      } else {
+        // For repeating reminders, check if current hour:minute matches
+        const targetHour = reminderDate.getHours();
+        const targetMinute = reminderDate.getMinutes();
+        const nowHour = now.getHours();
+        const nowMinute = now.getMinutes();
+
+        const nowTotalMins = nowHour * 60 + nowMinute;
+        const targetTotalMins = targetHour * 60 + targetMinute;
+        const diffMins = nowTotalMins - targetTotalMins;
+
+        if (diffMins >= 0 && diffMins < 2) {
+          if (reminder.frequency === 'daily') {
+            isDue = true;
+          } else if (reminder.frequency === 'weekly') {
+            isDue = now.getDay() === reminderDate.getDay();
+          } else if (reminder.frequency === 'monthly') {
+            isDue = now.getDate() === reminderDate.getDate();
+          } else if (reminder.frequency === 'yearly') {
+            isDue = now.getDate() === reminderDate.getDate() && now.getMonth() === reminderDate.getMonth();
+          }
+        }
+      }
+
+      // Use a date-stamped key so repeating reminders can fire again next time
+      const dateKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}`;
+      const uniqueAlertKey = `${alertKey}-${dateKey}`;
+
+      if (isDue && !alertedRemindersRef.current.has(uniqueAlertKey)) {
+        alertedRemindersRef.current.add(uniqueAlertKey);
+        const pet = pets.find((p) => p.id === reminder.petId);
+        const emoji = getReminderTypeEmoji(reminder.type);
+        const typeLabel = getReminderTypeLabel(reminder.type);
+
+        Alert.alert(
+          `${emoji} ${reminder.title}`,
+          `${pet?.name || '猫咪'}的${typeLabel}时间到啦！${reminder.notes ? '\n' + reminder.notes : ''}`,
+          [{ text: '知道了', style: 'default' }]
+        );
+
+        // Auto-deactivate one-time reminders after they fire
+        if (reminder.frequency === 'once') {
+          const updated = { ...reminder, isActive: false };
+          Storage.updateReminder(updated);
+          dispatch({ type: actionTypes.UPDATE_REMINDER, payload: updated });
+        }
+      }
+    }
+
+    // Clean up old alert keys (keep set from growing indefinitely)
+    if (alertedRemindersRef.current.size > 200) {
+      alertedRemindersRef.current.clear();
+    }
+  }, [state, getReminderTypeEmoji, getReminderTypeLabel]);
+
+  useEffect(() => {
+    if (!isExpoGo || state.isLoading) return;
+
+    // Check immediately on load
+    checkDueReminders();
+
+    // Poll every 30 seconds
+    const interval = setInterval(checkDueReminders, 30000);
+
+    // Also check when app comes back to foreground
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        checkDueReminders();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [checkDueReminders, state.isLoading]);
 
   // Pet actions
   const addPet = async (pet) => {
@@ -237,14 +383,27 @@ export function AppProvider({ children }) {
   const addReminderRecord = async (reminder) => {
     await Storage.addReminder(reminder);
     dispatch({ type: actionTypes.ADD_REMINDER, payload: reminder });
+    // Schedule device notification
+    if (reminder.isActive !== false) {
+      const pet = state.pets.find((p) => p.id === reminder.petId);
+      await scheduleReminderNotification(reminder, pet?.name);
+    }
   };
 
   const updateReminder = async (reminder) => {
     await Storage.updateReminder(reminder);
     dispatch({ type: actionTypes.UPDATE_REMINDER, payload: reminder });
+    // Update device notification
+    if (reminder.isActive !== false) {
+      const pet = state.pets.find((p) => p.id === reminder.petId);
+      await scheduleReminderNotification(reminder, pet?.name);
+    } else {
+      await cancelReminderNotification(reminder.id);
+    }
   };
 
   const removeReminder = async (reminderId) => {
+    await cancelReminderNotification(reminderId);
     await Storage.deleteReminder(reminderId);
     dispatch({ type: actionTypes.DELETE_REMINDER, payload: reminderId });
   };
@@ -290,6 +449,15 @@ export const useApp = () => {
     throw new Error('useApp must be used within an AppProvider');
   }
   return context;
+};
+
+export const useTheme = () => {
+  const { settings } = useApp();
+  const theme = useMemo(
+    () => (settings.darkMode ? DarkTheme : LightTheme),
+    [settings.darkMode]
+  );
+  return theme;
 };
 
 export default AppContext;

@@ -168,7 +168,7 @@ export const getSettings = async () => {
   const defaults = {
     darkMode: false,
     notificationsEnabled: true,
-    defaultPetType: 'dog',
+    defaultPetType: 'cat',
   };
   const saved = await getItem(STORAGE_KEYS.SETTINGS);
   return { ...defaults, ...saved };
