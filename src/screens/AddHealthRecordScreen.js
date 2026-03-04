@@ -16,7 +16,7 @@ import {
   FormButton,
   ChipGroup,
 } from '../components/FormElements';
-import { generateId, HEALTH_RECORD_TYPES } from '../utils/helpers';
+import { generateId, HEALTH_RECORD_TYPES, getLocalDateString } from '../utils/helpers';
 
 export default function AddHealthRecordScreen({ navigation, route }) {
   const { petId } = route.params;
@@ -27,7 +27,7 @@ export default function AddHealthRecordScreen({ navigation, route }) {
 
   const [title, setTitle] = useState('');
   const [type, setType] = useState('checkup');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateString());
   const [veterinarian, setVeterinarian] = useState('');
   const [clinic, setClinic] = useState('');
   const [cost, setCost] = useState('');
@@ -89,7 +89,7 @@ export default function AddHealthRecordScreen({ navigation, route }) {
           label="标题"
           value={title}
           onChangeText={setTitle}
-          placeholder="e.g. 年度疫苗"
+          placeholder="如：年度疏苗"
           icon="document-text-outline"
           required
         />

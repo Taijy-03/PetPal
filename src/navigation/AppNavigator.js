@@ -16,6 +16,9 @@ import AddActivityScreen from '../screens/AddActivityScreen';
 import AddReminderScreen from '../screens/AddReminderScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import HealthRecordDetailScreen from '../screens/HealthRecordDetailScreen';
+import ActivityDetailScreen from '../screens/ActivityDetailScreen';
+import PhotoViewScreen from '../screens/PhotoViewScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -71,6 +74,21 @@ function HomeStack() {
         component={AddReminderScreen}
         options={{ title: '添加提醒' }}
       />
+      <Stack.Screen
+        name="HealthRecordDetail"
+        component={HealthRecordDetailScreen}
+        options={{ title: '健康记录详情' }}
+      />
+      <Stack.Screen
+        name="ActivityDetail"
+        component={ActivityDetailScreen}
+        options={{ title: '活动详情' }}
+      />
+      <Stack.Screen
+        name="PhotoView"
+        component={PhotoViewScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
@@ -114,6 +132,21 @@ function PetsStack() {
         name="AddReminder"
         component={AddReminderScreen}
         options={{ title: '添加提醒' }}
+      />
+      <Stack.Screen
+        name="HealthRecordDetail"
+        component={HealthRecordDetailScreen}
+        options={{ title: '健康记录详情' }}
+      />
+      <Stack.Screen
+        name="ActivityDetail"
+        component={ActivityDetailScreen}
+        options={{ title: '活动详情' }}
+      />
+      <Stack.Screen
+        name="PhotoView"
+        component={PhotoViewScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
@@ -201,16 +234,34 @@ export default function AppNavigator() {
           name="HomeTab"
           component={HomeStack}
           options={{ title: '首页' }}
+          listeners={({ navigation, route }) => ({
+            tabPress: (e) => {
+              e.preventDefault();
+              navigation.navigate('HomeTab', { screen: 'HomeMain' });
+            },
+          })}
         />
         <Tab.Screen
           name="PetsTab"
           component={PetsStack}
           options={{ title: '猫咪' }}
+          listeners={({ navigation, route }) => ({
+            tabPress: (e) => {
+              e.preventDefault();
+              navigation.navigate('PetsTab', { screen: 'PetsList' });
+            },
+          })}
         />
         <Tab.Screen
           name="RemindersTab"
           component={RemindersStack}
           options={{ title: '提醒' }}
+          listeners={({ navigation, route }) => ({
+            tabPress: (e) => {
+              e.preventDefault();
+              navigation.navigate('RemindersTab', { screen: 'RemindersList' });
+            },
+          })}
         />
         <Tab.Screen
           name="SettingsTab"

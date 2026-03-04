@@ -330,7 +330,7 @@ export default function AddEditPetScreen({ navigation, route }) {
             label="毛色/花纹"
             value={color}
             onChangeText={setColor}
-            placeholder="e.g. 橘色, 黑白双色"
+            placeholder="如：橘色, 黑白双色"
             icon="color-palette-outline"
           />
 

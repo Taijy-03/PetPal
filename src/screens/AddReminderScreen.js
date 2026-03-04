@@ -219,7 +219,7 @@ export default function AddReminderScreen({ navigation, route }) {
             setTitle(text);
             if (errors.title) setErrors((prev) => ({ ...prev, title: undefined }));
           }}
-          placeholder="e.g. 早餐时间"
+          placeholder="如：早餐时间"
           icon="notifications-outline"
           required
           error={errors.title}

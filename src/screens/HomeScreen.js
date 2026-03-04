@@ -18,6 +18,7 @@ import {
   getActivityIcon,
   getHealthIcon,
   getPetTypeIcon,
+  getActivityTypeLabel,
 } from '../utils/helpers';
 
 export default function HomeScreen({ navigation }) {
@@ -160,7 +161,7 @@ export default function HomeScreen({ navigation }) {
                 </Text>
                 <View style={styles.activityInfo}>
                   <Text style={styles.activityTitle}>
-                    {activity.type?.charAt(0).toUpperCase() + activity.type?.slice(1)}
+                    {getActivityTypeLabel(activity.type)}
                   </Text>
                   <Text style={styles.activitySubtitle}>
                     {pet?.name || '未知猫咪'} •{' '}

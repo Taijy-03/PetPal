@@ -22,6 +22,8 @@ import {
   getRelativeTime,
   generateId,
   getBreedLabel,
+  getHealthTypeLabel,
+  getActivityTypeLabel,
 } from '../utils/helpers';
 
 export default function PetDetailScreen({ navigation, route }) {
@@ -54,7 +56,7 @@ export default function PetDetailScreen({ navigation, route }) {
   if (!pet) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Pet not found</Text>
+        <Text style={styles.errorText}>找不到猫咪</Text>
       </View>
     );
   }
@@ -66,7 +68,7 @@ export default function PetDetailScreen({ navigation, route }) {
       [
         { text: '取消', style: 'cancel' },
         {
-          text: 'Delete',
+          text: '删除',
           style: 'destructive',
           onPress: async () => {
             await removePet(pet.id);
@@ -200,7 +202,14 @@ export default function PetDetailScreen({ navigation, route }) {
         </View>
       ) : (
         petHealthRecords.map((record) => (
-          <View key={record.id} style={styles.recordCard}>
+          <TouchableOpacity
+            key={record.id}
+            style={styles.recordCard}
+            activeOpacity={0.7}
+            onPress={() => {
+              navigation.navigate('HealthRecordDetail', { recordId: record.id });
+            }}
+          >
             <View style={styles.recordHeader}>
               <Text style={styles.recordIcon}>
                 {getHealthIcon(record.type)}
@@ -211,21 +220,9 @@ export default function PetDetailScreen({ navigation, route }) {
                   {formatDate(record.date)}
                 </Text>
               </View>
-              <View style={styles.recordBadge}>
-                <Text style={styles.recordBadgeText}>
-                  {record.type?.charAt(0).toUpperCase() + record.type?.slice(1)}
-                </Text>
-              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.textLight} />
             </View>
-            {record.notes && (
-              <Text style={styles.recordNotes}>{record.notes}</Text>
-            )}
-            {record.veterinarian && (
-              <Text style={styles.recordVet}>
-                🩺 Dr. {record.veterinarian}
-              </Text>
-            )}
-          </View>
+          </TouchableOpacity>
         ))
       )}
     </View>
@@ -249,27 +246,27 @@ export default function PetDetailScreen({ navigation, route }) {
         </View>
       ) : (
         petActivities.map((activity) => (
-          <View key={activity.id} style={styles.activityCard}>
+          <TouchableOpacity
+            key={activity.id}
+            style={styles.activityCard}
+            activeOpacity={0.7}
+            onPress={() => {
+              navigation.navigate('ActivityDetail', { activityId: activity.id });
+            }}
+          >
             <Text style={styles.activityCardIcon}>
               {getActivityIcon(activity.type)}
             </Text>
             <View style={styles.activityCardInfo}>
               <Text style={styles.activityCardTitle}>
-                {activity.type?.charAt(0).toUpperCase() + activity.type?.slice(1)}
+                {getActivityTypeLabel(activity.type)}
               </Text>
               <Text style={styles.activityCardTime}>
-                {getRelativeTime(activity.date)}
+                {formatDate(activity.date)}
               </Text>
-              {activity.duration && (
-                <Text style={styles.activityDuration}>
-                  ⏱️ {activity.duration} min
-                </Text>
-              )}
-              {activity.notes && (
-                <Text style={styles.activityNotes}>{activity.notes}</Text>
-              )}
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textLight} />
+          </TouchableOpacity>
         ))
       )}
     </View>
@@ -298,7 +295,12 @@ export default function PetDetailScreen({ navigation, route }) {
         ) : (
           <View style={styles.photoGrid}>
             {allPhotos.map((photo, index) => (
-              <TouchableOpacity key={photo.id || index} style={styles.gridPhoto}>
+              <TouchableOpacity
+                key={photo.id || index}
+                style={styles.gridPhoto}
+                onPress={() => navigation.navigate('PhotoView', { photo })}
+                activeOpacity={0.8}
+              >
                 <Image
                   source={{ uri: photo.uri }}
                   style={styles.gridImage}
@@ -671,6 +673,7 @@ const createStyles = (theme) => StyleSheet.create({
   // Activity Card
   activityCard: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,

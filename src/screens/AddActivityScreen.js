@@ -15,7 +15,7 @@ import {
   FormButton,
   ChipGroup,
 } from '../components/FormElements';
-import { generateId, ACTIVITY_TYPES } from '../utils/helpers';
+import { generateId, ACTIVITY_TYPES, getLocalDateString } from '../utils/helpers';
 
 export default function AddActivityScreen({ navigation, route }) {
   const { petId } = route.params;
@@ -25,12 +25,13 @@ export default function AddActivityScreen({ navigation, route }) {
   const pet = pets.find((p) => p.id === petId);
 
   const [type, setType] = useState('play');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateString());
   const [time, setTime] = useState(
     new Date().toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
+      timeZone: 'Asia/Kuala_Lumpur',
     })
   );
   const [duration, setDuration] = useState('');

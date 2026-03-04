@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useApp, useTheme } from '../context/AppContext';
 import EmptyState from '../components/EmptyState';
-import { formatDate, formatTime } from '../utils/helpers';
+import { formatDate, formatTime, getFrequencyLabel } from '../utils/helpers';
 import { isExpoGo } from '../utils/notifications';
 
 export default function RemindersScreen({ navigation }) {
@@ -119,7 +119,7 @@ export default function RemindersScreen({ navigation }) {
                     {item.title}
                   </Text>
                   <Text style={styles.reminderPet}>
-                    {pet?.name || '未知'} • {item.frequency}
+                    {pet?.name || '未知'} • {getFrequencyLabel(item.frequency)}
                   </Text>
                   <View style={styles.dateTimeRow}>
                     <Ionicons

@@ -5,6 +5,13 @@ export const generateId = () => {
 
 export const TIMEZONE = 'Asia/Kuala_Lumpur';
 
+// 获取当地日期字符串 (YYYY-MM-DD)，使用马来西亚时区
+export const getLocalDateString = () => {
+  const now = new Date();
+  const parts = now.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+  return parts; // en-CA locale returns YYYY-MM-DD format
+};
+
 export const formatDate = (dateString) => {
   const date = new Date(dateString);
   return date.toLocaleDateString('zh-CN', {
@@ -188,3 +195,55 @@ export const REMINDER_FREQUENCIES = [
   { label: '每月', value: 'monthly' },
   { label: '每年', value: 'yearly' },
 ];
+
+// 健康记录类型中文标签
+const HEALTH_TYPE_LABELS = {
+  vaccination: '疫苗',
+  checkup: '体检',
+  medication: '用药',
+  surgery: '手术',
+  dental: '牙科',
+  allergy: '过敏',
+  injury: '受伤',
+  weight: '体重',
+  deworming: '驱虫',
+  sterilization: '绝育',
+  note: '备注',
+};
+
+export const getHealthTypeLabel = (type) => {
+  if (!type) return '未知';
+  return HEALTH_TYPE_LABELS[type.toLowerCase()] || type;
+};
+
+// 活动类型中文标签
+const ACTIVITY_TYPE_LABELS = {
+  feed: '喂食',
+  play: '玩耍',
+  groom: '梳毛',
+  sleep: '睡觉',
+  litter: '铲屎',
+  vet: '看医生',
+  medicine: '吃药',
+  cuddle: '撸猫',
+  other: '其他',
+};
+
+export const getActivityTypeLabel = (type) => {
+  if (!type) return '未知';
+  return ACTIVITY_TYPE_LABELS[type.toLowerCase()] || type;
+};
+
+// 提醒频率中文标签
+const FREQUENCY_LABELS = {
+  once: '一次',
+  daily: '每天',
+  weekly: '每周',
+  monthly: '每月',
+  yearly: '每年',
+};
+
+export const getFrequencyLabel = (frequency) => {
+  if (!frequency) return '一次';
+  return FREQUENCY_LABELS[frequency.toLowerCase()] || frequency;
+};
