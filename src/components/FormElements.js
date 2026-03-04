@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Image,
   Platform,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/AppContext';
+import { getPetTypeIcon, calculateAge } from '../utils/helpers';
 
 // Custom Text Input
 export function FormInput({
@@ -341,6 +343,142 @@ export function ChipGroup({ options, value, onChange, multiSelect = false }) {
   );
 }
 
+// Pet Picker with photos and rich card display
+export function FormPetPicker({ label, pets, value, onChange, required = false, error }) {
+  const [modalVisible, setModalVisible] = useState(false);
+  const theme = useTheme();
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
+  const selected = pets.find((p) => p.id === value);
+
+  const genderSymbol = (gender) => gender === 'male' ? '♂' : gender === 'female' ? '♀' : null;
+  const genderColor = (gender) => gender === 'male' ? '#3B82F6' : '#EC4899';
+
+  return (
+    <View style={formStyles.inputGroup}>
+      {label && (
+        <Text style={formStyles.label}>
+          {label}
+          {required && <Text style={formStyles.required}> *</Text>}
+        </Text>
+      )}
+      <TouchableOpacity
+        style={[formStyles.petPickerButton, error && formStyles.inputError]}
+        onPress={() => setModalVisible(true)}
+      >
+        {selected ? (
+          <View style={formStyles.petPickerSelected}>
+            <View style={formStyles.petPickerAvatarSmall}>
+              {selected.photo ? (
+                <Image source={{ uri: selected.photo }} style={formStyles.petPickerAvatarImgSmall} />
+              ) : (
+                <Text style={formStyles.petPickerEmojiSmall}>{getPetTypeIcon(selected.type)}</Text>
+              )}
+            </View>
+            <Text style={formStyles.petPickerSelectedName}>{selected.name}</Text>
+            {genderSymbol(selected.gender) && (
+              <Text style={[formStyles.petPickerGenderSmall, { color: genderColor(selected.gender) }]}>
+                {genderSymbol(selected.gender)}
+              </Text>
+            )}
+          </View>
+        ) : (
+          <View style={formStyles.petPickerSelected}>
+            <Ionicons name="paw-outline" size={20} color={theme.colors.textLight} />
+            <Text style={formStyles.pickerPlaceholder}>请选择猫咪...</Text>
+          </View>
+        )}
+        <Ionicons name="chevron-down" size={20} color={theme.colors.textSecondary} />
+      </TouchableOpacity>
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={formStyles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <View style={formStyles.petPickerModalContent}>
+            <View style={formStyles.petPickerModalHandle} />
+            <View style={formStyles.petPickerModalHeader}>
+              <Text style={formStyles.modalTitle}>选择猫咪</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={formStyles.petPickerModalScroll} showsVerticalScrollIndicator={false}>
+              {pets.map((pet) => {
+                const isSelected = value === pet.id;
+                const age = pet.birthDate ? calculateAge(pet.birthDate) : null;
+                const gs = genderSymbol(pet.gender);
+                const gc = genderColor(pet.gender);
+                return (
+                  <TouchableOpacity
+                    key={pet.id}
+                    style={[
+                      formStyles.petPickerCard,
+                      isSelected && formStyles.petPickerCardSelected,
+                    ]}
+                    onPress={() => {
+                      onChange(pet.id);
+                      setModalVisible(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={formStyles.petPickerAvatarContainer}>
+                      {pet.photo ? (
+                        <Image source={{ uri: pet.photo }} style={formStyles.petPickerAvatarImg} />
+                      ) : (
+                        <View style={formStyles.petPickerAvatarPlaceholder}>
+                          <Text style={formStyles.petPickerEmoji}>{getPetTypeIcon(pet.type)}</Text>
+                        </View>
+                      )}
+                      {gs && (
+                        <View style={[formStyles.petPickerGenderDot, { backgroundColor: gc }]}>
+                          <Text style={formStyles.petPickerGenderDotText}>{gs}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={formStyles.petPickerInfo}>
+                      <Text style={[
+                        formStyles.petPickerName,
+                        isSelected && formStyles.petPickerNameSelected,
+                      ]}>{pet.name}</Text>
+                      <View style={formStyles.petPickerMeta}>
+                        {age && (
+                          <View style={formStyles.petPickerTag}>
+                            <Ionicons name="calendar-outline" size={11} color={theme.colors.primary} />
+                            <Text style={formStyles.petPickerTagText}>{age}</Text>
+                          </View>
+                        )}
+                        {pet.weight && (
+                          <View style={formStyles.petPickerTag}>
+                            <Ionicons name="fitness-outline" size={11} color={theme.colors.primary} />
+                            <Text style={formStyles.petPickerTagText}>{pet.weight} {pet.weightUnit || 'kg'}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    {isSelected && (
+                      <View style={formStyles.petPickerCheck}>
+                        <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+      {error && <Text style={formStyles.errorText}>{error}</Text>}
+    </View>
+  );
+}
+
 const createFormStyles = (theme) => StyleSheet.create({
   inputGroup: {
     marginBottom: theme.spacing.md,
@@ -550,5 +688,162 @@ const createFormStyles = (theme) => StyleSheet.create({
   chipTextSelected: {
     color: theme.colors.primary,
     fontWeight: theme.fontWeight.semibold,
+  },
+  // Pet Picker styles
+  petPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    minHeight: 52,
+  },
+  petPickerSelected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    flex: 1,
+  },
+  petPickerAvatarSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: theme.colors.primaryLight + '40',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  petPickerAvatarImgSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+  },
+  petPickerEmojiSmall: {
+    fontSize: 18,
+  },
+  petPickerSelectedName: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+  },
+  petPickerGenderSmall: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.bold,
+  },
+  petPickerModalContent: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: theme.borderRadius.xl + 4,
+    borderTopRightRadius: theme.borderRadius.xl + 4,
+    maxHeight: '70%',
+    paddingBottom: theme.spacing.xl,
+  },
+  petPickerModalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: theme.colors.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  petPickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  petPickerModalScroll: {
+    padding: theme.spacing.md,
+  },
+  petPickerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  petPickerCardSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '08',
+  },
+  petPickerAvatarContainer: {
+    position: 'relative',
+    marginRight: theme.spacing.md,
+  },
+  petPickerAvatarImg: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+  },
+  petPickerAvatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: theme.colors.primaryLight + '50',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  petPickerEmoji: {
+    fontSize: 26,
+  },
+  petPickerGenderDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.inputBackground,
+  },
+  petPickerGenderDotText: {
+    fontSize: 9,
+    color: '#FFF',
+    fontWeight: '700',
+  },
+  petPickerInfo: {
+    flex: 1,
+  },
+  petPickerName: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  petPickerNameSelected: {
+    color: theme.colors.primary,
+  },
+  petPickerMeta: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  petPickerTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: theme.colors.primary + '12',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.round,
+  },
+  petPickerTagText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.primaryDark || theme.colors.primary,
+    fontWeight: theme.fontWeight.medium,
+  },
+  petPickerCheck: {
+    marginLeft: theme.spacing.sm,
   },
 });

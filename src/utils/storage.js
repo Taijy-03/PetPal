@@ -178,6 +178,60 @@ export const saveSettings = async (settings) => {
   return await setItem(STORAGE_KEYS.SETTINGS, settings);
 };
 
+// Auto-clean old records (keep last 30 days)
+export const cleanOldRecords = async (daysToKeep = 30) => {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+    // Clean old activities
+    const activities = await getActivities();
+    const cleanedActivities = activities.filter(
+      (a) => new Date(a.date) > cutoffDate
+    );
+    if (cleanedActivities.length < activities.length) {
+      await saveActivities(cleanedActivities);
+      console.log(
+        `Cleaned ${activities.length - cleanedActivities.length} old activities`
+      );
+    }
+
+    // Clean old health records
+    const healthRecords = await getHealthRecords();
+    const cleanedHealthRecords = healthRecords.filter(
+      (r) => new Date(r.date) > cutoffDate
+    );
+    if (cleanedHealthRecords.length < healthRecords.length) {
+      await saveHealthRecords(cleanedHealthRecords);
+      console.log(
+        `Cleaned ${healthRecords.length - cleanedHealthRecords.length} old health records`
+      );
+    }
+
+    // Clean old/completed reminders (keep for 7 days after completion)
+    const reminders = await getReminders();
+    const cleanedReminders = reminders.filter((r) => {
+      const reminderDate = new Date(r.dateTime);
+      // Keep if: 1) In future, 2) Within 7 days of now, or 3) Active
+      if (r.isActive !== false) return true; // Keep active reminders
+      if (reminderDate > new Date()) return true; // Keep future reminders
+      const daysAgo = (new Date() - reminderDate) / (1000 * 60 * 60 * 24);
+      return daysAgo <= 7; // Keep for 7 days after passing
+    });
+    if (cleanedReminders.length < reminders.length) {
+      await saveReminders(cleanedReminders);
+      console.log(
+        `Cleaned ${reminders.length - cleanedReminders.length} old reminders`
+      );
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error cleaning old records:', error);
+    return false;
+  }
+};
+
 // Clear all data
 export const clearAllData = async () => {
   try {

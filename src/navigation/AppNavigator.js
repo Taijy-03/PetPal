@@ -19,6 +19,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import HealthRecordDetailScreen from '../screens/HealthRecordDetailScreen';
 import ActivityDetailScreen from '../screens/ActivityDetailScreen';
 import PhotoViewScreen from '../screens/PhotoViewScreen';
+import ReminderDetailScreen from '../screens/ReminderDetailScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -73,6 +74,11 @@ function HomeStack() {
         name="AddReminder"
         component={AddReminderScreen}
         options={{ title: '添加提醒' }}
+      />
+      <Stack.Screen
+        name="ReminderDetail"
+        component={ReminderDetailScreen}
+        options={{ title: '提醒详情' }}
       />
       <Stack.Screen
         name="HealthRecordDetail"
@@ -134,6 +140,11 @@ function PetsStack() {
         options={{ title: '添加提醒' }}
       />
       <Stack.Screen
+        name="ReminderDetail"
+        component={ReminderDetailScreen}
+        options={{ title: '提醒详情' }}
+      />
+      <Stack.Screen
         name="HealthRecordDetail"
         component={HealthRecordDetailScreen}
         options={{ title: '健康记录详情' }}
@@ -166,6 +177,16 @@ function RemindersStack() {
         name="AddReminder"
         component={AddReminderScreen}
         options={{ title: '添加提醒' }}
+      />
+      <Stack.Screen
+        name="ReminderDetail"
+        component={ReminderDetailScreen}
+        options={{ title: '提醒详情' }}
+      />
+      <Stack.Screen
+        name="PetDetail"
+        component={PetDetailScreen}
+        options={{ title: '猫咪详情' }}
       />
     </Stack.Navigator>
   );

@@ -178,6 +178,9 @@ export function AppProvider({ children }) {
 
   const loadAllData = async () => {
     try {
+      // Auto-clean old records (keep last 30 days)
+      await Storage.cleanOldRecords(30);
+
       const [pets, healthRecords, activities, reminders, settings] =
         await Promise.all([
           Storage.getPets(),

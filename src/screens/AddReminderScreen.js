@@ -7,6 +7,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useApp, useTheme } from '../context/AppContext';
 import {
@@ -14,6 +15,7 @@ import {
   FormPicker,
   FormDateInput,
   FormButton,
+  FormPetPicker,
 } from '../components/FormElements';
 import { generateId, REMINDER_FREQUENCIES } from '../utils/helpers';
 import { requestNotificationPermissions } from '../utils/notifications';
@@ -67,13 +69,6 @@ export default function AddReminderScreen({ navigation, route }) {
   const { addReminderRecord, pets } = useApp();
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-
-  // Build pet options for the picker
-  const petOptions = pets.map((p) => ({
-    label: p.name,
-    value: p.id,
-    icon: '🐱',
-  }));
 
   const [selectedPetId, setSelectedPetId] = useState(routePetId || '');
   const [title, setTitle] = useState('');
@@ -195,14 +190,24 @@ export default function AddReminderScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.petBanner}>
-          <Text style={styles.petBannerText}>
-            🔔 {selectedPet?.name || '请选择猫咪'} 的提醒
-          </Text>
+          {selectedPet?.photo ? (
+            <Image source={{ uri: selectedPet.photo }} style={styles.petBannerPhoto} />
+          ) : (
+            <Text style={styles.petBannerEmoji}>🔔</Text>
+          )}
+          <View style={styles.petBannerTextContainer}>
+            <Text style={styles.petBannerText}>
+              {selectedPet?.name ? `${selectedPet.name} 的提醒` : '请选择一只猫咪'}
+            </Text>
+            {selectedPet?.birthDate && (
+              <Text style={styles.petBannerSub}>为你的猫咪设置贴心提醒~</Text>
+            )}
+          </View>
         </View>
 
-        <FormPicker
+        <FormPetPicker
           label="猫咪"
-          options={petOptions}
+          pets={pets}
           value={selectedPetId}
           onChange={(val) => {
             setSelectedPetId(val);
@@ -298,17 +303,37 @@ const createStyles = (theme) => StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
   },
   petBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#8BC7A320',
     padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.lg,
     borderLeftWidth: 3,
     borderLeftColor: '#8BC7A3',
+  },
+  petBannerPhoto: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    marginRight: theme.spacing.md,
+  },
+  petBannerEmoji: {
+    fontSize: 28,
+    marginRight: theme.spacing.md,
+  },
+  petBannerTextContainer: {
+    flex: 1,
   },
   petBannerText: {
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text,
+  },
+  petBannerSub: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
   },
   row: {
     flexDirection: 'row',
