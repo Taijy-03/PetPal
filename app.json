@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "PetPal",
+    "slug": "petpal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF6B6B"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.petpal.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take photos of your pets.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photos to add pet pictures."
+      }
+    },
+    "android": {
+      "package": "com.petpal.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#FF6B6B",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you add pet pictures.",
+          "cameraPermission": "The app uses your camera to take photos of your pets."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cf55a7aa-b820-434c-a949-4047b66e9143"
+      }
+    }
+  }
+}
