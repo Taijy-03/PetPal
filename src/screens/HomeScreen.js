@@ -243,7 +243,8 @@ export default function HomeScreen({ navigation }) {
             style={styles.addButton}
             onPress={() => navigation.navigate('AddPet')}
           >
-            <Ionicons name="add" size={26} color="#FFF" />
+            <Ionicons name="paw" size={18} color="#FFF" />
+            <Text style={styles.addButtonText}>添加猫咪</Text>
           </TouchableOpacity>
         </View>
 
@@ -493,7 +494,7 @@ export default function HomeScreen({ navigation }) {
             </View>
             <TouchableOpacity
               style={styles.seeAllButton}
-              onPress={() => navigation.navigate('PetsTab')}
+              onPress={() => navigation.navigate('AllActivities')}
             >
               <Text style={styles.seeAll}>全部</Text>
               <Ionicons name="chevron-forward" size={14} color={theme.colors.primary} />
@@ -699,17 +700,23 @@ const createStyles = (theme) =>
       marginTop: 4,
     },
     addButton: {
-      width: 48,
-      height: 48,
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.primary,
-      justifyContent: 'center',
+      flexDirection: 'row',
       alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: theme.borderRadius.xl,
+      backgroundColor: theme.colors.primary,
       shadowColor: theme.colors.primary,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 5,
+    },
+    addButtonText: {
+      color: '#FFF',
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.semibold,
     },
 
     // Tip Banner

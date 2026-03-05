@@ -18,13 +18,13 @@ import {
 import { generateId, ACTIVITY_TYPES, getLocalDateString } from '../utils/helpers';
 
 export default function AddActivityScreen({ navigation, route }) {
-  const { petId } = route.params;
+  const { petId, presetType } = route.params;
   const { addActivityRecord, pets } = useApp();
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const pet = pets.find((p) => p.id === petId);
 
-  const [type, setType] = useState('play');
+  const [type, setType] = useState(presetType || 'play');
   const [date, setDate] = useState(getLocalDateString());
   const [time, setTime] = useState(
     new Date().toLocaleTimeString('en-US', {

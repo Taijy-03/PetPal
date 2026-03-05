@@ -54,7 +54,8 @@
           "color": "#E8C547",
           "defaultChannel": "pet-reminders"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

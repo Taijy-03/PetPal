@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, CommonActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,7 @@ import RemindersScreen from '../screens/RemindersScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import HealthRecordDetailScreen from '../screens/HealthRecordDetailScreen';
 import ActivityDetailScreen from '../screens/ActivityDetailScreen';
+import AllActivitiesScreen from '../screens/AllActivitiesScreen';
 import PhotoViewScreen from '../screens/PhotoViewScreen';
 import ReminderDetailScreen from '../screens/ReminderDetailScreen';
 
@@ -84,6 +85,11 @@ function HomeStack() {
         name="HealthRecordDetail"
         component={HealthRecordDetailScreen}
         options={{ title: '健康记录详情' }}
+      />
+      <Stack.Screen
+        name="AllActivities"
+        component={AllActivitiesScreen}
+        options={{ title: '全部活动' }}
       />
       <Stack.Screen
         name="ActivityDetail"
@@ -255,10 +261,15 @@ export default function AppNavigator() {
           name="HomeTab"
           component={HomeStack}
           options={{ title: '首页' }}
-          listeners={({ navigation, route }) => ({
+          listeners={({ navigation }) => ({
             tabPress: (e) => {
               e.preventDefault();
-              navigation.navigate('HomeTab', { screen: 'HomeMain' });
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'HomeTab', state: { routes: [{ name: 'HomeMain' }] } }],
+                })
+              );
             },
           })}
         />
@@ -266,10 +277,15 @@ export default function AppNavigator() {
           name="PetsTab"
           component={PetsStack}
           options={{ title: '猫咪' }}
-          listeners={({ navigation, route }) => ({
+          listeners={({ navigation }) => ({
             tabPress: (e) => {
               e.preventDefault();
-              navigation.navigate('PetsTab', { screen: 'PetsList' });
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'PetsTab', state: { routes: [{ name: 'PetsList' }] } }],
+                })
+              );
             },
           })}
         />
@@ -277,10 +293,15 @@ export default function AppNavigator() {
           name="RemindersTab"
           component={RemindersStack}
           options={{ title: '提醒' }}
-          listeners={({ navigation, route }) => ({
+          listeners={({ navigation }) => ({
             tabPress: (e) => {
               e.preventDefault();
-              navigation.navigate('RemindersTab', { screen: 'RemindersList' });
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'RemindersTab', state: { routes: [{ name: 'RemindersList' }] } }],
+                })
+              );
             },
           })}
         />
