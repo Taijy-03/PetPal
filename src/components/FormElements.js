@@ -155,26 +155,377 @@ export function FormPicker({ label, options, value, onChange, required = false, 
   );
 }
 
-// Date Picker (simple text-based for compatibility)
+// ════════════════════════════════════════════
+// Friendly Date Picker with scrollable wheels
+// ════════════════════════════════════════════
+
+export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDate, minDate, minYear = 1990, validationMessage }) {
+  const theme = useTheme();
+  const ds = React.useMemo(() => createDatePickerStyles(theme), [theme]);
+
+  const today = new Date();
+  const maxD = maxDate ? new Date(maxDate) : today;
+  const maxYear = maxD.getFullYear();
+  const minD = minDate ? new Date(minDate) : null;
+  const effectiveMinYear = minD ? Math.max(minYear, minD.getFullYear()) : minYear;
+
+  // Parse initial date
+  const parseInit = () => {
+    if (initialDate && initialDate.length === 10) {
+      const d = new Date(initialDate);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return today;
+  };
+
+  const [selYear, setSelYear] = useState(() => parseInit().getFullYear());
+  const [selMonth, setSelMonth] = useState(() => parseInit().getMonth() + 1);
+  const [selDay, setSelDay] = useState(() => parseInit().getDate());
+
+  React.useEffect(() => {
+    if (visible) {
+      const d = parseInit();
+      setSelYear(d.getFullYear());
+      setSelMonth(d.getMonth() + 1);
+      setSelDay(d.getDate());
+      setDateError('');
+    }
+  }, [visible, initialDate]);
+
+  const years = React.useMemo(() => {
+    const arr = [];
+    for (let y = maxYear; y >= effectiveMinYear; y--) arr.push(y);
+    return arr;
+  }, [maxYear, effectiveMinYear]);
+
+  const months = React.useMemo(() => {
+    const arr = [];
+    for (let m = 1; m <= 12; m++) arr.push(m);
+    return arr;
+  }, []);
+
+  const daysInMonth = React.useMemo(() => {
+    return new Date(selYear, selMonth, 0).getDate();
+  }, [selYear, selMonth]);
+
+  const days = React.useMemo(() => {
+    const arr = [];
+    for (let d = 1; d <= daysInMonth; d++) arr.push(d);
+    return arr;
+  }, [daysInMonth]);
+
+  // Clamp day when month/year changes
+  React.useEffect(() => {
+    if (selDay > daysInMonth) setSelDay(daysInMonth);
+  }, [daysInMonth]);
+
+  const [dateError, setDateError] = useState('');
+
+  const handleConfirm = () => {
+    const mm = String(selMonth).padStart(2, '0');
+    const dd = String(selDay).padStart(2, '0');
+    const selectedDate = new Date(selYear, selMonth - 1, selDay);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    const todayClean = new Date();
+    todayClean.setHours(0, 0, 0, 0);
+
+    // Validate: not in the future
+    if (selectedDate > todayClean) {
+      setDateError('⚠️ 不能选择未来的日期');
+      return;
+    }
+
+    // Validate: not before minDate
+    if (minD) {
+      const minClean = new Date(minD);
+      minClean.setHours(0, 0, 0, 0);
+      if (selectedDate < minClean) {
+        const minStr = `${minD.getFullYear()}年${minD.getMonth() + 1}月${minD.getDate()}日`;
+        setDateError(validationMessage || `⚠️ 日期不能早于 ${minStr}`);
+        return;
+      }
+    }
+
+    // Validate: not after maxDate
+    if (maxDate) {
+      const maxClean = new Date(maxD);
+      maxClean.setHours(0, 0, 0, 0);
+      if (selectedDate > maxClean) {
+        setDateError('⚠️ 日期超出允许范围');
+        return;
+      }
+    }
+
+    setDateError('');
+    onSelect(`${selYear}-${mm}-${dd}`);
+    onClose();
+  };
+
+  const quickSelect = (date) => {
+    setSelYear(date.getFullYear());
+    setSelMonth(date.getMonth() + 1);
+    setSelDay(date.getDate());
+  };
+
+  const todayDate = new Date();
+  const yesterdayDate = new Date(todayDate);
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const weekAgoDate = new Date(todayDate);
+  weekAgoDate.setDate(weekAgoDate.getDate() - 7);
+
+  const formatPreview = () => {
+    const mm = String(selMonth).padStart(2, '0');
+    const dd = String(selDay).padStart(2, '0');
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    const d = new Date(selYear, selMonth - 1, selDay);
+    const wd = weekdays[d.getDay()];
+    return `${selYear}年${selMonth}月${selDay}日 周${wd}`;
+  };
+
+  const renderWheel = (data, selected, onSelect, width, labelSuffix = '') => (
+    <View style={[ds.wheelContainer, { width }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={ds.wheelScroll}
+        snapToInterval={44}
+        decelerationRate="fast"
+      >
+        {data.map((item) => (
+          <TouchableOpacity
+            key={item}
+            style={[ds.wheelItem, selected === item && ds.wheelItemSelected]}
+            onPress={() => onSelect(item)}
+          >
+            <Text
+              style={[
+                ds.wheelItemText,
+                selected === item && ds.wheelItemTextSelected,
+              ]}
+            >
+              {item}{labelSuffix}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={ds.overlay} activeOpacity={1} onPress={onClose}>
+        <View style={ds.container} onStartShouldSetResponder={() => true}>
+          {/* Handle */}
+          <View style={ds.handle} />
+
+          {/* Header */}
+          <View style={ds.header}>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={ds.cancelText}>取消</Text>
+            </TouchableOpacity>
+            <Text style={ds.title}>选择日期</Text>
+            <TouchableOpacity onPress={handleConfirm}>
+              <Text style={ds.confirmText}>确定</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Preview */}
+          <View style={ds.preview}>
+            <Text style={ds.previewText}>📅 {formatPreview()}</Text>
+            {dateError ? (
+              <Text style={ds.dateErrorText}>{dateError}</Text>
+            ) : null}
+          </View>
+
+          {/* Quick Select */}
+          <View style={ds.quickRow}>
+            <TouchableOpacity
+              style={ds.quickBtn}
+              onPress={() => quickSelect(todayDate)}
+            >
+              <Text style={ds.quickBtnText}>今天</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={ds.quickBtn}
+              onPress={() => quickSelect(yesterdayDate)}
+            >
+              <Text style={ds.quickBtnText}>昨天</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={ds.quickBtn}
+              onPress={() => quickSelect(weekAgoDate)}
+            >
+              <Text style={ds.quickBtnText}>一周前</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Wheels */}
+          <View style={ds.wheelsRow}>
+            {renderWheel(years, selYear, setSelYear, 100, '年')}
+            {renderWheel(months, selMonth, setSelMonth, 70, '月')}
+            {renderWheel(days, selDay, setSelDay, 70, '日')}
+          </View>
+
+          {/* Bottom Confirm */}
+          <TouchableOpacity style={ds.confirmBtn} onPress={handleConfirm}>
+            <Text style={ds.confirmBtnText}>✓ 确认选择</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+const createDatePickerStyles = (theme) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end',
+    },
+    container: {
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.colors.border,
+      alignSelf: 'center',
+      marginTop: 10,
+      marginBottom: 6,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    cancelText: {
+      fontSize: theme.fontSize.md,
+      color: theme.colors.textSecondary,
+    },
+    title: {
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.bold,
+      color: theme.colors.text,
+    },
+    confirmText: {
+      fontSize: theme.fontSize.md,
+      fontWeight: theme.fontWeight.bold,
+      color: theme.colors.primary,
+    },
+    preview: {
+      alignItems: 'center',
+      paddingVertical: 12,
+    },
+    previewText: {
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.semibold,
+      color: theme.colors.text,
+    },
+    dateErrorText: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.error || '#E57373',
+      marginTop: 6,
+      fontWeight: theme.fontWeight.medium,
+    },
+    quickRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 10,
+      marginBottom: 12,
+    },
+    quickBtn: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: theme.colors.primary + '15',
+      borderWidth: 1,
+      borderColor: theme.colors.primary + '30',
+    },
+    quickBtnText: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.primary,
+      fontWeight: theme.fontWeight.medium,
+    },
+    wheelsRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      height: 220,
+    },
+    wheelContainer: {
+      backgroundColor: theme.colors.background,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    wheelScroll: {
+      paddingVertical: 6,
+    },
+    wheelItem: {
+      height: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 8,
+      marginHorizontal: 4,
+      marginVertical: 1,
+    },
+    wheelItemSelected: {
+      backgroundColor: theme.colors.primary + '18',
+    },
+    wheelItemText: {
+      fontSize: theme.fontSize.md,
+      color: theme.colors.textSecondary,
+    },
+    wheelItemTextSelected: {
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.bold,
+      color: theme.colors.primary,
+    },
+    confirmBtn: {
+      marginHorizontal: 16,
+      marginTop: 12,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    confirmBtnText: {
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.bold,
+      color: '#FFF',
+    },
+  });
+
+// ─── FormDateInput ───
 export function FormDateInput({
   label,
   value,
   onChange,
-  placeholder = '请输入 例: 2023-01-15',
+  placeholder = '点击选择日期',
   required = false,
   error,
   isWarning = false,
   maxDate,
+  allowManualInput = false,
 }) {
+  const [showPicker, setShowPicker] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
   const theme = useTheme();
   const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
 
   const handleDateChange = (text) => {
-    // Only allow digits and dashes
     let cleaned = text.replace(/[^0-9-]/g, '');
-    
-    // Auto-format: insert dashes at correct positions
-    // Remove all dashes first, then re-insert
     const digitsOnly = cleaned.replace(/-/g, '');
     let formatted = '';
     for (let i = 0; i < digitsOnly.length && i < 8; i++) {
@@ -183,7 +534,6 @@ export function FormDateInput({
       }
       formatted += digitsOnly[i];
     }
-    
     onChange(formatted);
   };
 
@@ -204,7 +554,17 @@ export function FormDateInput({
     return months > 0 ? `约 ${years} 岁 ${months} 个月` : `约 ${years} 岁`;
   };
 
+  const getDisplayValue = () => {
+    if (!value || value.length !== 10) return null;
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return null;
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    const parts = value.split('-');
+    return `${parts[0]}年${parseInt(parts[1])}月${parseInt(parts[2])}日 周${weekdays[d.getDay()]}`;
+  };
+
   const ageHint = getAgeHint();
+  const displayValue = getDisplayValue();
 
   return (
     <View style={formStyles.inputGroup}>
@@ -214,27 +574,97 @@ export function FormDateInput({
           {required && <Text style={formStyles.required}> *</Text>}
         </Text>
       )}
-      <View style={[formStyles.inputContainer, error && !isWarning && formStyles.inputError, error && isWarning && formStyles.inputWarning]}>
-        <Ionicons
-          name="calendar-outline"
-          size={20}
-          color={theme.colors.textSecondary}
-          style={formStyles.inputIcon}
-        />
-        <TextInput
-          style={formStyles.input}
-          value={value}
-          onChangeText={handleDateChange}
-          placeholder={placeholder}
-          placeholderTextColor={theme.colors.textLight}
-          keyboardType="number-pad"
-          maxLength={10}
-        />
-      </View>
+
+      {manualMode ? (
+        /* Manual text input mode */
+        <View style={[formStyles.inputContainer, error && !isWarning && formStyles.inputError, error && isWarning && formStyles.inputWarning]}>
+          <Ionicons
+            name="calendar-outline"
+            size={20}
+            color={theme.colors.textSecondary}
+            style={formStyles.inputIcon}
+          />
+          <TextInput
+            style={formStyles.input}
+            value={value}
+            onChangeText={handleDateChange}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={theme.colors.textLight}
+            keyboardType="number-pad"
+            maxLength={10}
+            autoFocus
+          />
+          <TouchableOpacity
+            onPress={() => setManualMode(false)}
+            style={formStyles.dateModeSwitchBtn}
+          >
+            <Ionicons name="calendar" size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        /* Tap-to-pick mode */
+        <TouchableOpacity
+          style={[
+            formStyles.datePickerButton,
+            error && !isWarning && formStyles.inputError,
+            error && isWarning && formStyles.inputWarning,
+          ]}
+          onPress={() => setShowPicker(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={20}
+            color={value ? theme.colors.primary : theme.colors.textSecondary}
+            style={formStyles.inputIcon}
+          />
+          <View style={formStyles.dateDisplayWrap}>
+            {displayValue ? (
+              <>
+                <Text style={formStyles.dateDisplayText}>{displayValue}</Text>
+                <Text style={formStyles.dateRawText}>{value}</Text>
+              </>
+            ) : (
+              <Text style={formStyles.datePlaceholder}>{placeholder}</Text>
+            )}
+          </View>
+          <View style={formStyles.dateActions}>
+            {value ? (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation && e.stopPropagation();
+                  onChange('');
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={18} color={theme.colors.textLight} />
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation && e.stopPropagation();
+                setManualMode(true);
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="create-outline" size={18} color={theme.colors.textLight} />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
+
       {error && <Text style={[formStyles.errorText, isWarning && formStyles.warningText]}>{error}</Text>}
       {ageHint && !error && (
         <Text style={formStyles.hintText}>🐱 {ageHint}</Text>
       )}
+
+      <DatePickerModal
+        visible={showPicker}
+        onClose={() => setShowPicker(false)}
+        onSelect={onChange}
+        initialDate={value}
+        maxDate={maxDate}
+      />
     </View>
   );
 }
@@ -519,6 +949,44 @@ const createFormStyles = (theme) => StyleSheet.create({
   multilineInput: {
     minHeight: 100,
     textAlignVertical: 'top',
+  },
+  // Date picker button styles
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    minHeight: 52,
+  },
+  dateDisplayWrap: {
+    flex: 1,
+  },
+  dateDisplayText: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.text,
+  },
+  dateRawText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+    marginTop: 1,
+  },
+  datePlaceholder: {
+    fontSize: theme.fontSize.lg,
+    color: theme.colors.textLight,
+  },
+  dateActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginLeft: theme.spacing.sm,
+  },
+  dateModeSwitchBtn: {
+    paddingLeft: theme.spacing.sm,
   },
   errorText: {
     fontSize: theme.fontSize.sm,

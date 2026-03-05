@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp, useTheme } from '../context/AppContext';
@@ -36,6 +37,29 @@ export default function SettingsScreen({ navigation }) {
   const [passwordError, setPasswordError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [hasAdminPassword, setHasAdminPassword] = useState(false);
+
+  // Hidden features state
+  const [tapCount, setTapCount] = useState(0);
+  const [showHiddenFeatures, setShowHiddenFeatures] = useState(false);
+  const hiddenFadeAnim = useRef(new Animated.Value(0)).current;
+
+  const revealHiddenFeatures = useCallback(() => {
+    setShowHiddenFeatures(true);
+    Animated.spring(hiddenFadeAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 7,
+    }).start();
+  }, [hiddenFadeAnim]);
+
+  // Derived stats
+  const deceasedPetsCount = pets.filter((p) => p.isDeceased).length;
+  const alivePetsCount = pets.filter((p) => !p.isDeceased).length;
+  const familyRelationsCount = pets.reduce(
+    (acc, p) => acc + (p.relationships?.length || 0),
+    0
+  ) / 2; // each relation is stored twice
 
   // Check if admin password exists on mount
   useEffect(() => {
@@ -165,9 +189,59 @@ export default function SettingsScreen({ navigation }) {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* App Info */}
       <View style={styles.appInfo}>
-        <Text style={styles.appIcon}>🐱</Text>
+        <TouchableOpacity
+          onPress={() => {
+            const newCount = tapCount + 1;
+            setTapCount(newCount);
+            if (newCount >= 7 && !showHiddenFeatures) {
+              revealHiddenFeatures();
+              Alert.alert(
+                '🐾 喵~ 你发现了秘密！',
+                '猫咪家庭树和彩虹桥纪念册已解锁。\n\n📖 家庭树：记录猫咪之间的亲属关系\n🌈 纪念册：永远纪念离开的毛孩子',
+              );
+            } else if (newCount >= 3 && newCount < 7) {
+              // No alert, just show progress
+            }
+          }}
+          onLongPress={() => {
+            if (!showHiddenFeatures) {
+              revealHiddenFeatures();
+              Alert.alert(
+                '🐾 喵~ 你发现了秘密！',
+                '猫咪家庭树和彩虹桥纪念册已解锁。\n\n📖 家庭树：记录猫咪之间的亲属关系\n🌈 纪念册：永远纪念离开的毛孩子',
+              );
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.appIcon}>🐱</Text>
+        </TouchableOpacity>
         <Text style={styles.appName}>喵记</Text>
         <Text style={styles.appVersion}>版本 1.0.0</Text>
+        {/* Unlock progress hint */}
+        {tapCount >= 3 && tapCount < 7 && !showHiddenFeatures && (
+          <View style={styles.unlockProgressContainer}>
+            <View style={styles.unlockProgressBar}>
+              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.unlockDot,
+                    {
+                      backgroundColor:
+                        i <= tapCount
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+            <Text style={styles.unlockHintText}>
+              再点 {7 - tapCount} 次... 🤫
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* General Settings */}
@@ -280,7 +354,7 @@ export default function SettingsScreen({ navigation }) {
             icon="paw"
             color="#E8A0BF"
             label="猫咪总数"
-            value={pets.length}
+            value={alivePetsCount}
           />
           <StatItem
             icon="medkit"
@@ -300,8 +374,104 @@ export default function SettingsScreen({ navigation }) {
             label="提醒"
             value={reminders.length}
           />
+          {showHiddenFeatures && familyRelationsCount > 0 && (
+            <StatItem
+              icon="git-merge"
+              color="#E8C547"
+              label="家庭关系"
+              value={Math.round(familyRelationsCount)}
+            />
+          )}
+          {showHiddenFeatures && deceasedPetsCount > 0 && (
+            <StatItem
+              icon="heart-half"
+              color="#BA90C6"
+              label="已故猫咪"
+              value={deceasedPetsCount}
+            />
+          )}
         </View>
       </View>
+
+      {/* Hidden Features */}
+      {showHiddenFeatures && (
+        <Animated.View
+          style={[
+            styles.section,
+            {
+              opacity: hiddenFadeAnim,
+              transform: [
+                {
+                  translateY: hiddenFadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>🐾 隐藏功能</Text>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('CatFamilyBook')}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: '#E8C54720' }]}>
+                <Ionicons name="git-network" size={20} color="#E8C547" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.settingLabel}>🌳 猫咪家庭树</Text>
+                <Text style={styles.settingDescription}>
+                  以树状图记录猫咪间的亲属关系
+                </Text>
+              </View>
+            </View>
+            {Math.round(familyRelationsCount) > 0 && (
+              <View style={styles.settingBadge}>
+                <Text style={styles.settingBadgeText}>
+                  {Math.round(familyRelationsCount)}
+                </Text>
+              </View>
+            )}
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textLight}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => navigation.navigate('DeceasedCats')}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.settingIcon, { backgroundColor: '#BA90C620' }]}>
+                <Ionicons name="heart-half" size={20} color="#BA90C6" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.settingLabel}>🌈 彩虹桥纪念册</Text>
+                <Text style={styles.settingDescription}>
+                  永远纪念已离开的毛孩子
+                </Text>
+              </View>
+            </View>
+            {deceasedPetsCount > 0 && (
+              <View style={[styles.settingBadge, { backgroundColor: '#BA90C620' }]}>
+                <Text style={[styles.settingBadgeText, { color: '#BA90C6' }]}>
+                  {deceasedPetsCount}
+                </Text>
+              </View>
+            )}
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textLight}
+            />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       {/* About */}
       <View style={styles.section}>
@@ -443,6 +613,36 @@ const createStyles = (theme) => StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
     marginTop: 4,
+  },
+  unlockProgressContainer: {
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+  },
+  unlockProgressBar: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 4,
+  },
+  unlockDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  unlockHintText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textLight,
+  },
+  settingBadge: {
+    backgroundColor: theme.colors.primary + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginRight: 8,
+  },
+  settingBadgeText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.primary,
   },
   section: {
     marginBottom: theme.spacing.md,

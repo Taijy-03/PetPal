@@ -21,6 +21,8 @@ import ActivityDetailScreen from '../screens/ActivityDetailScreen';
 import AllActivitiesScreen from '../screens/AllActivitiesScreen';
 import PhotoViewScreen from '../screens/PhotoViewScreen';
 import ReminderDetailScreen from '../screens/ReminderDetailScreen';
+import CatFamilyBookScreen from '../screens/CatFamilyBookScreen';
+import DeceasedCatsScreen from '../screens/DeceasedCatsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -207,6 +209,16 @@ function SettingsStack() {
         name="SettingsMain"
         component={SettingsScreen}
         options={{ title: '设置' }}
+      />
+      <Stack.Screen
+        name="CatFamilyBook"
+        component={CatFamilyBookScreen}
+        options={{ title: '📖 猫咪家庭书' }}
+      />
+      <Stack.Screen
+        name="DeceasedCats"
+        component={DeceasedCatsScreen}
+        options={{ title: '🌈 彩虹桥纪念册' }}
       />
     </Stack.Navigator>
   );

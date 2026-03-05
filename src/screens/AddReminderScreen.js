@@ -171,7 +171,7 @@ export default function AddReminderScreen({ navigation, route }) {
   };
 
   const handleDateChange = (text) => {
-    setDateTime(formatDateInput(text));
+    setDateTime(text);
     if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
   };
 
