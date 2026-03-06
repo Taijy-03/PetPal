@@ -295,6 +295,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity
           style={[styles.statCard, { backgroundColor: '#A8D5A2' }]}
           activeOpacity={0.8}
+          onPress={() => navigation.navigate('AllHealthRecords')}
         >
           <View style={styles.statIconContainer}>
             <Ionicons name="medkit" size={22} color="#FFF" />
@@ -305,6 +306,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity
           style={[styles.statCard, { backgroundColor: '#9DC4E0' }]}
           activeOpacity={0.8}
+          onPress={() => navigation.navigate('AllActivities')}
         >
           <View style={styles.statIconContainer}>
             <Ionicons name="footsteps" size={22} color="#FFF" />
@@ -439,9 +441,9 @@ export default function HomeScreen({ navigation }) {
             {healthRecords.length > 2 && (
               <TouchableOpacity
                 style={styles.seeAllButton}
-                onPress={() => navigation.navigate('PetDetail', { petId: pets[0]?.id })}
+                onPress={() => navigation.navigate('AllHealthRecords')}
               >
-                <Text style={styles.seeAll}>查看全部</Text>
+                <Text style={styles.seeAll}>全部</Text>
                 <Ionicons name="chevron-forward" size={14} color={theme.colors.primary} />
               </TouchableOpacity>
             )}

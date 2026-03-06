@@ -36,13 +36,13 @@ export function FormInput({
           {required && <Text style={formStyles.required}> *</Text>}
         </Text>
       )}
-      <View style={[formStyles.inputContainer, error && formStyles.inputError]}>
+      <View style={[formStyles.inputContainer, multiline && formStyles.inputContainerMultiline, error && formStyles.inputError]}>
         {icon && (
           <Ionicons
             name={icon}
             size={20}
             color={theme.colors.textSecondary}
-            style={formStyles.inputIcon}
+            style={[formStyles.inputIcon, multiline && formStyles.inputIconMultiline]}
           />
         )}
         <TextInput
@@ -53,7 +53,7 @@ export function FormInput({
           placeholderTextColor={theme.colors.textLight}
           multiline={multiline}
           keyboardType={keyboardType}
-          numberOfLines={multiline ? 4 : 1}
+          numberOfLines={multiline ? 5 : 1}
         />
       </View>
       {error && <Text style={formStyles.errorText}>{error}</Text>}
@@ -1085,6 +1085,10 @@ const createFormStyles = (theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
+  inputContainerMultiline: {
+    alignItems: 'flex-start',
+    paddingTop: theme.spacing.sm,
+  },
   inputError: {
     borderColor: theme.colors.error,
   },
@@ -1094,6 +1098,9 @@ const createFormStyles = (theme) => StyleSheet.create({
   inputIcon: {
     marginRight: theme.spacing.sm,
   },
+  inputIconMultiline: {
+    marginTop: Platform.OS === 'ios' ? 14 : 10,
+  },
   input: {
     flex: 1,
     paddingVertical: Platform.OS === 'ios' ? 14 : 10,
@@ -1101,8 +1108,9 @@ const createFormStyles = (theme) => StyleSheet.create({
     color: theme.colors.text,
   },
   multilineInput: {
-    minHeight: 100,
+    minHeight: 110,
     textAlignVertical: 'top',
+    paddingBottom: 12,
   },
   // Date picker button styles
   datePickerButton: {

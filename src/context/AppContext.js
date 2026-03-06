@@ -44,6 +44,7 @@ const actionTypes = {
   // Activities
   SET_ACTIVITIES: 'SET_ACTIVITIES',
   ADD_ACTIVITY: 'ADD_ACTIVITY',
+  UPDATE_ACTIVITY: 'UPDATE_ACTIVITY',
   DELETE_ACTIVITY: 'DELETE_ACTIVITY',
   // Reminders
   SET_REMINDERS: 'SET_REMINDERS',
@@ -126,6 +127,13 @@ function appReducer(state, action) {
       return {
         ...state,
         activities: [...state.activities, action.payload],
+      };
+    case actionTypes.UPDATE_ACTIVITY:
+      return {
+        ...state,
+        activities: state.activities.map((a) =>
+          a.id === action.payload.id ? action.payload : a
+        ),
       };
     case actionTypes.DELETE_ACTIVITY:
       return {
@@ -380,6 +388,11 @@ export function AppProvider({ children }) {
     dispatch({ type: actionTypes.ADD_ACTIVITY, payload: activity });
   };
 
+  const updateActivityRecord = async (activity) => {
+    await Storage.updateActivity(activity);
+    dispatch({ type: actionTypes.UPDATE_ACTIVITY, payload: activity });
+  };
+
   const removeActivity = async (activityId) => {
     await Storage.deleteActivity(activityId);
     dispatch({ type: actionTypes.DELETE_ACTIVITY, payload: activityId });
@@ -451,6 +464,7 @@ export function AppProvider({ children }) {
     updateHealthRecord,
     removeHealthRecord,
     addActivityRecord,
+    updateActivityRecord,
     removeActivity,
     addReminderRecord,
     updateReminder,

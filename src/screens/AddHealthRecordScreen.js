@@ -19,20 +19,21 @@ import {
 import { generateId, HEALTH_RECORD_TYPES, getLocalDateString } from '../utils/helpers';
 
 export default function AddHealthRecordScreen({ navigation, route }) {
-  const { petId } = route.params;
-  const { addHealthRecord, pets } = useApp();
+  const { petId, record: existingRecord } = route.params;
+  const isEditing = !!existingRecord;
+  const { addHealthRecord, updateHealthRecord, pets } = useApp();
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const pet = pets.find((p) => p.id === petId);
 
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState('checkup');
-  const [date, setDate] = useState(getLocalDateString());
-  const [veterinarian, setVeterinarian] = useState('');
-  const [clinic, setClinic] = useState('');
-  const [cost, setCost] = useState('');
-  const [notes, setNotes] = useState('');
-  const [nextDueDate, setNextDueDate] = useState('');
+  const [title, setTitle] = useState(existingRecord?.title || '');
+  const [type, setType] = useState(existingRecord?.type || 'checkup');
+  const [date, setDate] = useState(existingRecord?.date || getLocalDateString());
+  const [veterinarian, setVeterinarian] = useState(existingRecord?.veterinarian || '');
+  const [clinic, setClinic] = useState(existingRecord?.clinic || '');
+  const [cost, setCost] = useState(existingRecord?.cost != null ? String(existingRecord.cost) : '');
+  const [notes, setNotes] = useState(existingRecord?.notes || '');
+  const [nextDueDate, setNextDueDate] = useState(existingRecord?.nextDueDate || '');
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -41,7 +42,7 @@ export default function AddHealthRecordScreen({ navigation, route }) {
     }
 
     const record = {
-      id: generateId(),
+      id: existingRecord?.id || generateId(),
       petId,
       title: title.trim(),
       type,
@@ -51,14 +52,19 @@ export default function AddHealthRecordScreen({ navigation, route }) {
       cost: cost ? parseFloat(cost) : null,
       notes: notes.trim(),
       nextDueDate: nextDueDate || null,
-      createdAt: new Date().toISOString(),
+      createdAt: existingRecord?.createdAt || new Date().toISOString(),
+      updatedAt: isEditing ? new Date().toISOString() : undefined,
     };
 
     try {
-      await addHealthRecord(record);
+      if (isEditing) {
+        await updateHealthRecord(record);
+      } else {
+        await addHealthRecord(record);
+      }
       navigation.goBack();
     } catch (error) {
-      Alert.alert('错误', '保存健康记录失败。');
+      Alert.alert('错误', isEditing ? '更新健康记录失败。' : '保存健康记录失败。');
     }
   };
 
@@ -144,7 +150,7 @@ export default function AddHealthRecordScreen({ navigation, route }) {
         />
 
         <FormButton
-          title="保存健康记录"
+          title={isEditing ? '保存修改' : '保存健康记录'}
           onPress={handleSave}
           icon="checkmark-circle"
         />

@@ -18,30 +18,49 @@ import {
 import { generateId, ACTIVITY_TYPES, getLocalDateString } from '../utils/helpers';
 
 export default function AddActivityScreen({ navigation, route }) {
-  const { petId, presetType } = route.params;
-  const { addActivityRecord, pets } = useApp();
+  const { petId, presetType, activity: existingActivity } = route.params;
+  const isEditing = !!existingActivity;
+  const { addActivityRecord, updateActivityRecord, pets } = useApp();
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const pet = pets.find((p) => p.id === petId);
 
-  const [type, setType] = useState(presetType || 'play');
-  const [date, setDate] = useState(getLocalDateString());
-  const [time, setTime] = useState(
-    new Date().toLocaleTimeString('en-US', {
+  // Parse existing date/time if editing
+  const getInitialDate = () => {
+    if (existingActivity?.date) {
+      return existingActivity.date.split('T')[0];
+    }
+    return getLocalDateString();
+  };
+  const getInitialTime = () => {
+    if (existingActivity?.date && existingActivity.date.includes('T')) {
+      return existingActivity.date.split('T')[1]?.slice(0, 5) || '00:00';
+    }
+    return new Date().toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
       timeZone: 'Asia/Kuala_Lumpur',
-    })
+    });
+  };
+
+  const [type, setType] = useState(existingActivity?.type || presetType || 'play');
+  const [date, setDate] = useState(getInitialDate());
+  const [time, setTime] = useState(getInitialTime());
+  const [duration, setDuration] = useState(
+    existingActivity?.duration != null ? String(existingActivity.duration) : ''
   );
-  const [duration, setDuration] = useState('');
-  const [distance, setDistance] = useState('');
-  const [calories, setCalories] = useState('');
-  const [notes, setNotes] = useState('');
+  const [distance, setDistance] = useState(
+    existingActivity?.distance != null ? String(existingActivity.distance) : ''
+  );
+  const [calories, setCalories] = useState(
+    existingActivity?.calories != null ? String(existingActivity.calories) : ''
+  );
+  const [notes, setNotes] = useState(existingActivity?.notes || '');
 
   const handleSave = async () => {
     const activity = {
-      id: generateId(),
+      id: existingActivity?.id || generateId(),
       petId,
       type,
       date: `${date}T${time || '00:00'}`,
@@ -49,14 +68,19 @@ export default function AddActivityScreen({ navigation, route }) {
       distance: distance ? parseFloat(distance) : null,
       calories: calories ? parseInt(calories) : null,
       notes: notes.trim(),
-      createdAt: new Date().toISOString(),
+      createdAt: existingActivity?.createdAt || new Date().toISOString(),
+      updatedAt: isEditing ? new Date().toISOString() : undefined,
     };
 
     try {
-      await addActivityRecord(activity);
+      if (isEditing) {
+        await updateActivityRecord(activity);
+      } else {
+        await addActivityRecord(activity);
+      }
       navigation.goBack();
     } catch (error) {
-      Alert.alert('错误', '保存活动失败。');
+      Alert.alert('错误', isEditing ? '更新活动失败。' : '保存活动失败。');
     }
   };
 
@@ -71,7 +95,7 @@ export default function AddActivityScreen({ navigation, route }) {
       >
         <View style={styles.petBanner}>
           <Text style={styles.petBannerText}>
-            🐱 为 {pet?.name || '猫咪'} 记录活动
+            🐱 为 {pet?.name || '猫咪'} {isEditing ? '编辑活动' : '记录活动'}
           </Text>
         </View>
 
@@ -134,7 +158,7 @@ export default function AddActivityScreen({ navigation, route }) {
         />
 
         <FormButton
-          title="保存活动"
+          title={isEditing ? '保存修改' : '保存活动'}
           onPress={handleSave}
           icon="checkmark-circle"
           variant="secondary"

@@ -113,11 +113,26 @@ export default function ActivityDetailScreen({ navigation, route }) {
         </Text>
       )}
 
-      {/* 删除按钮 */}
-      <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-        <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
-        <Text style={styles.deleteBtnText}>删除此活动</Text>
-      </TouchableOpacity>
+      {/* 删除 & 编辑按钮 */}
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.editBtn]}
+          onPress={() =>
+            navigation.navigate('AddActivity', {
+              petId: activity.petId,
+              activity,
+            })
+          }
+        >
+          <Ionicons name="pencil-outline" size={20} color={theme.colors.primary} />
+          <Text style={[styles.actionBtnText, { color: theme.colors.primary }]}>编辑</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={handleDelete}>
+          <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+          <Text style={[styles.actionBtnText, { color: theme.colors.error }]}>删除</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -221,21 +236,30 @@ const createStyles = (theme) =>
       color: theme.colors.textLight,
       marginTop: theme.spacing.lg,
     },
-    deleteBtn: {
+    actionRow: {
+      flexDirection: 'row',
+      gap: theme.spacing.sm,
+      marginHorizontal: theme.spacing.md,
+      marginTop: theme.spacing.lg,
+    },
+    actionBtn: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      marginHorizontal: theme.spacing.md,
-      marginTop: theme.spacing.lg,
       paddingVertical: theme.spacing.md,
       borderRadius: theme.borderRadius.md,
       borderWidth: 1,
+    },
+    editBtn: {
+      borderColor: theme.colors.primary + '40',
+    },
+    deleteBtn: {
       borderColor: theme.colors.error + '40',
     },
-    deleteBtnText: {
+    actionBtnText: {
       fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.semibold,
-      color: theme.colors.error,
     },
   });

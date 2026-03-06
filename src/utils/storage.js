@@ -118,6 +118,16 @@ export const addActivity = async (activity) => {
   return await saveActivities(activities);
 };
 
+export const updateActivity = async (updatedActivity) => {
+  const activities = await getActivities();
+  const index = activities.findIndex((a) => a.id === updatedActivity.id);
+  if (index !== -1) {
+    activities[index] = updatedActivity;
+    return await saveActivities(activities);
+  }
+  return false;
+};
+
 export const deleteActivity = async (activityId) => {
   const activities = await getActivities();
   return await saveActivities(activities.filter((a) => a.id !== activityId));

@@ -77,7 +77,20 @@ export default function AddEditPetScreen({ navigation, route }) {
   const isEditing = !!editingPet;
 
   const [name, setName] = useState(editingPet?.name || '');
-  const [breed, setBreed] = useState(editingPet?.breed || '');
+  // 编辑时：若保存的 breed 不在列表中，说明是自定义品种，恢复为 'other'
+  const savedBreedInList = editingPet?.breed
+    ? CAT_BREEDS.find(b => b.value === editingPet.breed)
+    : true;
+  const [breed, setBreed] = useState(
+    editingPet?.breed
+      ? (savedBreedInList ? editingPet.breed : 'other')
+      : ''
+  );
+  const [customBreed, setCustomBreed] = useState(
+    editingPet?.breed && !savedBreedInList
+      ? editingPet.breed          // 之前存的自定义文字
+      : editingPet?.customBreed || ''
+  );
   const [gender, setGender] = useState(editingPet?.gender || '');
   const [birthDate, setBirthDate] = useState(editingPet?.birthDate || '');
   const [weight, setWeight] = useState(editingPet?.weight?.toString() || '');
@@ -85,11 +98,6 @@ export default function AddEditPetScreen({ navigation, route }) {
   const [color, setColor] = useState(editingPet?.color || '');
   const [hasMicrochip, setHasMicrochip] = useState(!!editingPet?.microchip);
   const [microchip, setMicrochip] = useState(editingPet?.microchip || '');
-  const [customBreed, setCustomBreed] = useState(
-    editingPet?.breed && !CAT_BREEDS.find(b => b.value === editingPet?.breed)
-      ? editingPet.breed
-      : editingPet?.customBreed || ''
-  );
   const [notes, setNotes] = useState(editingPet?.notes || '');
   const [photo, setPhoto] = useState(editingPet?.photo || null);
   const [photos, setPhotos] = useState(editingPet?.photos || []);

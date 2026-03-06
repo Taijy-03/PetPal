@@ -19,6 +19,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import HealthRecordDetailScreen from '../screens/HealthRecordDetailScreen';
 import ActivityDetailScreen from '../screens/ActivityDetailScreen';
 import AllActivitiesScreen from '../screens/AllActivitiesScreen';
+import AllHealthRecordsScreen from '../screens/AllHealthRecordsScreen';
 import PhotoViewScreen from '../screens/PhotoViewScreen';
 import ReminderDetailScreen from '../screens/ReminderDetailScreen';
 import CatFamilyBookScreen from '../screens/CatFamilyBookScreen';
@@ -94,6 +95,11 @@ function HomeStack() {
         options={{ title: '全部活动' }}
       />
       <Stack.Screen
+        name="AllHealthRecords"
+        component={AllHealthRecordsScreen}
+        options={{ title: '健康记录' }}
+      />
+      <Stack.Screen
         name="ActivityDetail"
         component={ActivityDetailScreen}
         options={{ title: '活动详情' }}
@@ -161,6 +167,11 @@ function PetsStack() {
         name="ActivityDetail"
         component={ActivityDetailScreen}
         options={{ title: '活动详情' }}
+      />
+      <Stack.Screen
+        name="AllHealthRecords"
+        component={AllHealthRecordsScreen}
+        options={{ title: '健康记录' }}
       />
       <Stack.Screen
         name="PhotoView"
