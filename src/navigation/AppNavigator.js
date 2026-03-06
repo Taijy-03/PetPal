@@ -213,12 +213,12 @@ function SettingsStack() {
       <Stack.Screen
         name="CatFamilyBook"
         component={CatFamilyBookScreen}
-        options={{ title: '📖 猫咪家庭书' }}
+        options={{ title: '🌳 猫咪家庭树' }}
       />
       <Stack.Screen
         name="DeceasedCats"
         component={DeceasedCatsScreen}
-        options={{ title: '🌈 彩虹桥纪念册' }}
+        options={{ title: '🌙 喵星纪念册' }}
       />
     </Stack.Navigator>
   );

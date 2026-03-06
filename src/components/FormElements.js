@@ -159,7 +159,7 @@ export function FormPicker({ label, options, value, onChange, required = false, 
 // Friendly Date Picker with scrollable wheels
 // ════════════════════════════════════════════
 
-export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDate, minDate, minYear = 1990, validationMessage }) {
+export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDate, minDate, minYear = 1990, validationMessage, allowFuture = false }) {
   const theme = useTheme();
   const ds = React.useMemo(() => createDatePickerStyles(theme), [theme]);
 
@@ -200,9 +200,12 @@ export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDa
 
   const months = React.useMemo(() => {
     const arr = [];
-    for (let m = 1; m <= 12; m++) arr.push(m);
+    const maxMonth = (!allowFuture && selYear === today.getFullYear())
+      ? today.getMonth() + 1
+      : 12;
+    for (let m = 1; m <= maxMonth; m++) arr.push(m);
     return arr;
-  }, []);
+  }, [selYear, allowFuture]);
 
   const daysInMonth = React.useMemo(() => {
     return new Date(selYear, selMonth, 0).getDate();
@@ -210,9 +213,13 @@ export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDa
 
   const days = React.useMemo(() => {
     const arr = [];
-    for (let d = 1; d <= daysInMonth; d++) arr.push(d);
+    const isCurrentYearMonth = !allowFuture
+      && selYear === today.getFullYear()
+      && selMonth === today.getMonth() + 1;
+    const maxDay = isCurrentYearMonth ? today.getDate() : daysInMonth;
+    for (let d = 1; d <= maxDay; d++) arr.push(d);
     return arr;
-  }, [daysInMonth]);
+  }, [selYear, selMonth, daysInMonth, allowFuture]);
 
   // Clamp day when month/year changes
   React.useEffect(() => {
@@ -230,8 +237,8 @@ export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDa
     const todayClean = new Date();
     todayClean.setHours(0, 0, 0, 0);
 
-    // Validate: not in the future
-    if (selectedDate > todayClean) {
+    // Validate: not in the future (skip for reminders)
+    if (!allowFuture && selectedDate > todayClean) {
       setDateError('⚠️ 不能选择未来的日期');
       return;
     }
@@ -273,6 +280,11 @@ export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDa
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const weekAgoDate = new Date(todayDate);
   weekAgoDate.setDate(weekAgoDate.getDate() - 7);
+  const tomorrowDate = new Date(todayDate);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const weekLaterDate = new Date(todayDate);
+  weekLaterDate.setDate(weekLaterDate.getDate() + 7);
+
 
   const formatPreview = () => {
     const mm = String(selMonth).padStart(2, '0');
@@ -341,24 +353,26 @@ export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDa
 
           {/* Quick Select */}
           <View style={ds.quickRow}>
-            <TouchableOpacity
-              style={ds.quickBtn}
-              onPress={() => quickSelect(todayDate)}
-            >
-              <Text style={ds.quickBtnText}>今天</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={ds.quickBtn}
-              onPress={() => quickSelect(yesterdayDate)}
-            >
-              <Text style={ds.quickBtnText}>昨天</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={ds.quickBtn}
-              onPress={() => quickSelect(weekAgoDate)}
-            >
-              <Text style={ds.quickBtnText}>一周前</Text>
-            </TouchableOpacity>
+            {(minD
+              ? [
+                  { label: '今天', date: todayDate },
+                  { label: '明天', date: tomorrowDate },
+                  { label: '一周后', date: weekLaterDate },
+                ]
+              : [
+                  { label: '今天', date: todayDate },
+                  { label: '昨天', date: yesterdayDate },
+                  { label: '一周前', date: weekAgoDate },
+                ]
+            ).map(({ label, date }) => (
+              <TouchableOpacity
+                key={label}
+                style={ds.quickBtn}
+                onPress={() => quickSelect(date)}
+              >
+                <Text style={ds.quickBtnText}>{label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Wheels */}
@@ -517,10 +531,11 @@ export function FormDateInput({
   error,
   isWarning = false,
   maxDate,
-  allowManualInput = false,
+  minDate,
+  allowFuture = false,
+  hideAgeHint = false,
 }) {
   const [showPicker, setShowPicker] = useState(false);
-  const [manualMode, setManualMode] = useState(false);
   const theme = useTheme();
   const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
 
@@ -537,21 +552,26 @@ export function FormDateInput({
     onChange(formatted);
   };
 
-  // Calculate helper text showing age
+  // Calculate helper text showing relative time
   const getAgeHint = () => {
     if (!value || value.length !== 10) return null;
-    const parsed = new Date(value);
-    if (isNaN(parsed.getTime())) return null;
+    const parts = value.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    const [y, m, d] = parts;
+    const parsed = new Date(y, m - 1, d);
     const now = new Date();
-    if (parsed > now) return null;
-    const diffMs = now - parsed;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays < 30) return `约 ${diffDays} 天`;
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const isFuture = parsed > todayMidnight;
+    if (isFuture && !allowFuture) return null;
+    const diffDays = Math.round(Math.abs(parsed - todayMidnight) / 86400000);
+    const suffix = isFuture ? '后' : '前';
+    if (diffDays === 0) return '今天';
+    if (diffDays < 30) return `约 ${diffDays} 天${suffix}`;
     const diffMonths = Math.floor(diffDays / 30.44);
-    if (diffMonths < 12) return `约 ${diffMonths} 个月`;
+    if (diffMonths < 12) return `约 ${diffMonths} 个月${suffix}`;
     const years = Math.floor(diffMonths / 12);
     const months = diffMonths % 12;
-    return months > 0 ? `约 ${years} 岁 ${months} 个月` : `约 ${years} 岁`;
+    return months > 0 ? `约 ${years} 岁 ${months} 个月${suffix}` : `约 ${years} 岁${suffix}`;
   };
 
   const getDisplayValue = () => {
@@ -575,86 +595,46 @@ export function FormDateInput({
         </Text>
       )}
 
-      {manualMode ? (
-        /* Manual text input mode */
-        <View style={[formStyles.inputContainer, error && !isWarning && formStyles.inputError, error && isWarning && formStyles.inputWarning]}>
-          <Ionicons
-            name="calendar-outline"
-            size={20}
-            color={theme.colors.textSecondary}
-            style={formStyles.inputIcon}
-          />
-          <TextInput
-            style={formStyles.input}
-            value={value}
-            onChangeText={handleDateChange}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={theme.colors.textLight}
-            keyboardType="number-pad"
-            maxLength={10}
-            autoFocus
-          />
-          <TouchableOpacity
-            onPress={() => setManualMode(false)}
-            style={formStyles.dateModeSwitchBtn}
-          >
-            <Ionicons name="calendar" size={20} color={theme.colors.primary} />
-          </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          formStyles.datePickerButton,
+          error && !isWarning && formStyles.inputError,
+          error && isWarning && formStyles.inputWarning,
+        ]}
+        onPress={() => setShowPicker(true)}
+        activeOpacity={0.7}
+      >
+        <Ionicons
+          name="calendar-outline"
+          size={20}
+          color={value ? theme.colors.primary : theme.colors.textSecondary}
+          style={formStyles.inputIcon}
+        />
+        <View style={formStyles.dateDisplayWrap}>
+          {displayValue ? (
+            <>
+              <Text style={formStyles.dateDisplayText}>{displayValue}</Text>
+              <Text style={formStyles.dateRawText}>{value}</Text>
+            </>
+          ) : (
+            <Text style={formStyles.datePlaceholder}>{placeholder}</Text>
+          )}
         </View>
-      ) : (
-        /* Tap-to-pick mode */
-        <TouchableOpacity
-          style={[
-            formStyles.datePickerButton,
-            error && !isWarning && formStyles.inputError,
-            error && isWarning && formStyles.inputWarning,
-          ]}
-          onPress={() => setShowPicker(true)}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="calendar-outline"
-            size={20}
-            color={value ? theme.colors.primary : theme.colors.textSecondary}
-            style={formStyles.inputIcon}
-          />
-          <View style={formStyles.dateDisplayWrap}>
-            {displayValue ? (
-              <>
-                <Text style={formStyles.dateDisplayText}>{displayValue}</Text>
-                <Text style={formStyles.dateRawText}>{value}</Text>
-              </>
-            ) : (
-              <Text style={formStyles.datePlaceholder}>{placeholder}</Text>
-            )}
-          </View>
-          <View style={formStyles.dateActions}>
-            {value ? (
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation && e.stopPropagation();
-                  onChange('');
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="close-circle" size={18} color={theme.colors.textLight} />
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation && e.stopPropagation();
-                setManualMode(true);
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="create-outline" size={18} color={theme.colors.textLight} />
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      )}
+        {value ? (
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation && e.stopPropagation();
+              onChange('');
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close-circle" size={18} color={theme.colors.textLight} />
+          </TouchableOpacity>
+        ) : null}
+      </TouchableOpacity>
 
       {error && <Text style={[formStyles.errorText, isWarning && formStyles.warningText]}>{error}</Text>}
-      {ageHint && !error && (
+      {!hideAgeHint && ageHint && !error && (
         <Text style={formStyles.hintText}>🐱 {ageHint}</Text>
       )}
 
@@ -664,6 +644,8 @@ export function FormDateInput({
         onSelect={onChange}
         initialDate={value}
         maxDate={maxDate}
+        minDate={minDate}
+        allowFuture={allowFuture}
       />
     </View>
   );
@@ -712,7 +694,179 @@ export function FormButton({
   );
 }
 
+// ════════════════════════════════════════════
+// Time Picker Modal with scrollable wheels
+// ════════════════════════════════════════════
+
+export function TimePickerModal({ visible, onClose, onSelect, initialTime }) {
+  const theme = useTheme();
+  const ds = React.useMemo(() => createDatePickerStyles(theme), [theme]);
+
+  const parseInit = () => {
+    if (initialTime && /^\d{2}:\d{2}$/.test(initialTime)) {
+      const [h, m] = initialTime.split(':').map(Number);
+      return { h, m };
+    }
+    const now = new Date();
+    return { h: now.getHours(), m: now.getMinutes() };
+  };
+
+  const [selHour, setSelHour] = useState(() => parseInit().h);
+  const [selMin, setSelMin] = useState(() => parseInit().m);
+
+  React.useEffect(() => {
+    if (visible) {
+      const { h, m } = parseInit();
+      setSelHour(h);
+      setSelMin(m);
+    }
+  }, [visible, initialTime]);
+
+  const hours = React.useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+  const minutes = React.useMemo(() => Array.from({ length: 60 }, (_, i) => i), []);
+
+  const handleConfirm = () => {
+    const hh = String(selHour).padStart(2, '0');
+    const mm = String(selMin).padStart(2, '0');
+    onSelect(`${hh}:${mm}`);
+    onClose();
+  };
+
+  const formatPreview = () => {
+    const hh = String(selHour).padStart(2, '0');
+    const mm = String(selMin).padStart(2, '0');
+    const period = selHour < 12 ? '上午' : '下午';
+    const h12 = selHour % 12 || 12;
+    return `${period} ${h12}:${mm}  (${hh}:${mm})`;
+  };
+
+  const renderWheel = (data, selected, onSel, width) => (
+    <View style={[ds.wheelContainer, { width }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={ds.wheelScroll}
+        snapToInterval={44}
+        decelerationRate="fast"
+      >
+        {data.map((item) => (
+          <TouchableOpacity
+            key={item}
+            style={[ds.wheelItem, selected === item && ds.wheelItemSelected]}
+            onPress={() => onSel(item)}
+          >
+            <Text style={[ds.wheelItemText, selected === item && ds.wheelItemTextSelected]}>
+              {String(item).padStart(2, '0')}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={ds.overlay} activeOpacity={1} onPress={onClose}>
+        <View style={ds.container} onStartShouldSetResponder={() => true}>
+          <View style={ds.handle} />
+          <View style={ds.header}>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={ds.cancelText}>取消</Text>
+            </TouchableOpacity>
+            <Text style={ds.title}>选择时间</Text>
+            <TouchableOpacity onPress={handleConfirm}>
+              <Text style={ds.confirmText}>确定</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={ds.preview}>
+            <Text style={ds.previewText}>🕐 {formatPreview()}</Text>
+          </View>
+          <View style={[ds.wheelsRow, { justifyContent: 'center', gap: 24 }]}>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={[ds.cancelText, { marginBottom: 4 }]}>时</Text>
+              {renderWheel(hours, selHour, setSelHour, 80)}
+            </View>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={[ds.cancelText, { marginBottom: 4 }]}>分</Text>
+              {renderWheel(minutes, selMin, setSelMin, 80)}
+            </View>
+          </View>
+          <TouchableOpacity style={ds.confirmBtn} onPress={handleConfirm}>
+            <Text style={ds.confirmBtnText}>✓ 确认选择</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+// ─── FormTimeInput ───
+export function FormTimeInput({ label, value, onChange, required = false, error }) {
+  const [showPicker, setShowPicker] = useState(false);
+  const theme = useTheme();
+  const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
+
+  const displayValue = value && /^\d{2}:\d{2}$/.test(value)
+    ? (() => {
+        const [h, m] = value.split(':').map(Number);
+        const period = h < 12 ? '上午' : '下午';
+        const h12 = h % 12 || 12;
+        return `${period} ${h12}:${String(m).padStart(2, '0')}`;
+      })()
+    : null;
+
+  return (
+    <View style={formStyles.inputGroup}>
+      {label && (
+        <Text style={formStyles.label}>
+          {label}
+          {required && <Text style={formStyles.required}> *</Text>}
+        </Text>
+      )}
+      <TouchableOpacity
+        style={[formStyles.datePickerButton, error && formStyles.inputError]}
+        onPress={() => setShowPicker(true)}
+        activeOpacity={0.7}
+      >
+        <Ionicons
+          name="time-outline"
+          size={20}
+          color={value ? theme.colors.primary : theme.colors.textSecondary}
+          style={formStyles.inputIcon}
+        />
+        <View style={formStyles.dateDisplayWrap}>
+          {displayValue ? (
+            <>
+              <Text style={formStyles.dateDisplayText}>{displayValue}</Text>
+              <Text style={formStyles.dateRawText}>{value}</Text>
+            </>
+          ) : (
+            <Text style={formStyles.datePlaceholder}>点击选择时间</Text>
+          )}
+        </View>
+        {value ? (
+          <TouchableOpacity
+            onPress={(e) => { e.stopPropagation && e.stopPropagation(); onChange(''); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close-circle" size={18} color={theme.colors.textLight} />
+          </TouchableOpacity>
+        ) : null}
+      </TouchableOpacity>
+      {error && <Text style={formStyles.errorText}>{error}</Text>}
+      <TimePickerModal
+        visible={showPicker}
+        onClose={() => setShowPicker(false)}
+        onSelect={onChange}
+        initialTime={value}
+      />
+    </View>
+  );
+}
+
 // Section Header
+
 export function SectionHeader({ title, actionLabel, onAction }) {
   const theme = useTheme();
   const formStyles = React.useMemo(() => createFormStyles(theme), [theme]);
@@ -966,7 +1120,7 @@ const createFormStyles = (theme) => StyleSheet.create({
     flex: 1,
   },
   dateDisplayText: {
-    fontSize: theme.fontSize.lg,
+    fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.text,
   },

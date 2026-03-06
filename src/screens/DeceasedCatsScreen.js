@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
   Platform,
   FlatList,
   Dimensions,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,6 +26,189 @@ import {
   generateId,
 } from '../utils/helpers';
 import { DatePickerModal } from '../components/FormElements';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// ✨ Gliding Star Component - 星星划过效果
+const GlidingStar = ({ delay = 0, duration = 2200, startX, startY, endX, endY }) => {
+  const anim = useRef(new Animated.Value(0)).current;
+  const sparkle = useRef(new Animated.Value(0.8)).current;
+  // 随机fadeOutAt点（0.4~1之间）
+  const fadeOutAt = useRef(0.4 + Math.random() * 0.6).current;
+
+  useEffect(() => {
+    const animate = () => {
+      anim.setValue(0);
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(anim, {
+          toValue: 1,
+          duration,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+        Animated.delay(1500),
+      ]).start(() => animate());
+    };
+    animate();
+
+    // 星星闪烁动画
+    const twinkle = () => {
+      Animated.sequence([
+        Animated.timing(sparkle, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: false,
+        }),
+        Animated.timing(sparkle, {
+          toValue: 0.65,
+          duration: 400,
+          useNativeDriver: false,
+        }),
+      ]).start(() => twinkle());
+    };
+    twinkle();
+  }, []);
+
+  const translateX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [startX, endX],
+  });
+  const translateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [startY, endY],
+  });
+  // 淡入->全可见->fadeOutAt后淡出
+  const opacity = anim.interpolate({
+    inputRange: [0, 0.08, 0.15, fadeOutAt, fadeOutAt + 0.08, 1],
+    outputRange: [0, 0.4, 1, 1, 0, 0],
+  });
+  const rotate = anim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: ['0deg', '180deg', '360deg'],
+  });
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        opacity,
+        transform: [
+          { translateX },
+          { translateY },
+        ],
+      }}
+    >
+      <Animated.Text
+        style={{
+          fontSize: 14,
+          opacity: sparkle,
+          transform: [{ rotate }],
+          textShadowColor: '#FFD700',
+          textShadowOffset: { width: 0, height: 0 },
+          textShadowRadius: 8,
+        }}
+      >
+        ⭐
+      </Animated.Text>
+    </Animated.View>
+  );
+};
+
+// ✨ Twinkling Star Component
+const TwinklingStar = ({ x, y, size = 4, delay = 0 }) => {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const animate = () => {
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 1200 + Math.random() * 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.2,
+          duration: 1000 + Math.random() * 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ]).start(() => animate());
+    };
+    animate();
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        left: x,
+        top: y,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: '#FFFDE7',
+        opacity,
+        shadowColor: '#FFD700',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: size,
+      }}
+    />
+  );
+};
+
+// 🌙 Floating Glow Component
+const FloatingGlow = ({ x, y, color = '#7B68EE', size = 80, delay = 0 }) => {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animate = () => {
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: 3000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ]).start(() => animate());
+    };
+    animate();
+  }, []);
+
+  const translateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -10],
+  });
+  const opacity = anim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0.15, 0.3, 0.15],
+  });
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        left: x - size / 2,
+        top: y - size / 2,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        opacity,
+        transform: [{ translateY }],
+      }}
+    />
+  );
+};
 
 export default function DeceasedCatsScreen({ navigation }) {
   const { pets, updatePet } = useApp();
@@ -90,7 +275,7 @@ export default function DeceasedCatsScreen({ navigation }) {
 
     Alert.alert(
       '确认标记',
-      `确定要将 ${markPet.name} 标记为已故吗？这个操作可以在之后撤销。`,
+      `确定要送 ${markPet.name} 去喵星吗？之后也可以接回来哦。`,
       [
         { text: '取消', style: 'cancel' },
         {
@@ -106,8 +291,8 @@ export default function DeceasedCatsScreen({ navigation }) {
             await updatePet(updatedPet);
             setShowMarkDeceasedModal(false);
             Alert.alert(
-              '🌈 永远记得',
-              `${markPet.name} 已被添加到彩虹桥纪念册。它将永远活在我们心中。`
+              '✨ 喵星之旅',
+              `${markPet.name} 已踏上去喵星的旅途。它将化作最亮的星，永远守护你。`
             );
           },
         },
@@ -118,7 +303,7 @@ export default function DeceasedCatsScreen({ navigation }) {
   const handleRestorePet = (pet) => {
     Alert.alert(
       '恢复猫咪',
-      `确定要将 ${pet.name} 从已故记录中恢复吗？`,
+      `确定要将 ${pet.name} 从喵星接回来吗？`,
       [
         { text: '取消', style: 'cancel' },
         {
@@ -238,8 +423,8 @@ export default function DeceasedCatsScreen({ navigation }) {
     const diffDays = Math.round(
       (thisYearAnniversary - now) / 86400000
     );
-    if (diffDays === 0) return `🕯️ 今天是 ${years} 周年纪念日`;
-    if (diffDays > 0 && diffDays <= 7) return `🕯️ ${diffDays} 天后是 ${years} 周年纪念日`;
+    if (diffDays === 0) return `🌟 今天是 ${years} 周年纪念日`;
+    if (diffDays > 0 && diffDays <= 7) return `🌟 ${diffDays} 天后是 ${years} 周年纪念日`;
     return null;
   };
 
@@ -284,9 +469,9 @@ export default function DeceasedCatsScreen({ navigation }) {
       onPress={() => handleViewMemorial(pet)}
       activeOpacity={0.8}
     >
-      {/* Candle decoration */}
-      <View style={styles.candleDecor}>
-        <Text style={styles.candleEmoji}>🕯️</Text>
+      {/* Star decoration */}
+      <View style={styles.starDecor}>
+        <Text style={styles.starEmoji}>✨</Text>
       </View>
 
       <View style={styles.memorialCardInner}>
@@ -299,8 +484,8 @@ export default function DeceasedCatsScreen({ navigation }) {
               <Text style={styles.memorialPhotoEmoji}>🐱</Text>
             </View>
           )}
-          <View style={styles.rainbowBridge}>
-            <Text style={styles.rainbowEmoji}>🌈</Text>
+          <View style={styles.catStarBadge}>
+            <Text style={styles.catStarEmoji}>⭐</Text>
           </View>
         </View>
 
@@ -315,12 +500,12 @@ export default function DeceasedCatsScreen({ navigation }) {
           )}
           {pet.deceasedDate && (
             <Text style={styles.memorialDate}>
-              🌟 {formatDate(pet.deceasedDate)}
+              🌙 {formatDate(pet.deceasedDate)}
             </Text>
           )}
           {pet.deceasedDate && (
             <Text style={styles.memorialDaysSince}>
-              离开我们 {getDaysSince(pet.deceasedDate)}
+              去喵星 {getDaysSince(pet.deceasedDate)}
             </Text>
           )}
         </View>
@@ -337,22 +522,52 @@ export default function DeceasedCatsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Dreamy Starry Header */}
         <View style={styles.headerSection}>
-          <Text style={styles.headerEmoji}>🌈</Text>
-          <Text style={styles.headerTitle}>彩虹桥纪念册</Text>
+          {/* Starry Sky Background Elements */}
+          <View style={styles.starryOverlay}>
+            <FloatingGlow x={40} y={20} color="#7B68EE" size={100} delay={0} />
+            <FloatingGlow x={SCREEN_WIDTH - 60} y={60} color="#9B59B6" size={70} delay={1500} />
+            <FloatingGlow x={SCREEN_WIDTH / 2} y={10} color="#6C5CE7" size={60} delay={800} />
+            
+            <TwinklingStar x={30} y={15} size={3} delay={0} />
+            <TwinklingStar x={80} y={55} size={2} delay={400} />
+            <TwinklingStar x={SCREEN_WIDTH - 40} y={25} size={4} delay={200} />
+            <TwinklingStar x={SCREEN_WIDTH - 90} y={70} size={2} delay={600} />
+            <TwinklingStar x={SCREEN_WIDTH / 2 - 30} y={30} size={3} delay={100} />
+            <TwinklingStar x={SCREEN_WIDTH / 2 + 40} y={100} size={2} delay={500} />
+            <TwinklingStar x={120} y={130} size={3} delay={300} />
+            <TwinklingStar x={SCREEN_WIDTH - 130} y={150} size={2} delay={700} />
+            <TwinklingStar x={50} y={170} size={2} delay={900} />
+            <TwinklingStar x={SCREEN_WIDTH / 2 + 60} y={190} size={3} delay={150} />
+            <TwinklingStar x={160} y={210} size={2} delay={450} />
+            <TwinklingStar x={SCREEN_WIDTH - 50} y={230} size={3} delay={350} />
+            <TwinklingStar x={90} y={250} size={2} delay={250} />
+            <TwinklingStar x={SCREEN_WIDTH - 70} y={200} size={3} delay={550} />
+            <TwinklingStar x={SCREEN_WIDTH / 2 - 60} y={260} size={2} delay={800} />
+            <TwinklingStar x={200} y={120} size={3} delay={650} />
+            
+            <GlidingStar delay={300} duration={3800} startX={-20} startY={20} endX={SCREEN_WIDTH - 20} endY={200} />
+            <GlidingStar delay={4200} duration={4200} startX={-15} startY={60} endX={SCREEN_WIDTH - 30} endY={260} />
+            <GlidingStar delay={8500} duration={3600} startX={-10} startY={10} endX={SCREEN_WIDTH - 40} endY={160} />
+            <GlidingStar delay={12500} duration={4000} startX={-20} startY={100} endX={SCREEN_WIDTH - 10} endY={250} />
+            <GlidingStar delay={6200} duration={3400} startX={-15} startY={40} endX={SCREEN_WIDTH - 25} endY={220} />
+          </View>
+          
+          <Text style={styles.headerEmoji}>🌙</Text>
+          <Text style={styles.headerTitle}>喵星纪念册</Text>
           <Text style={styles.headerSubtitle}>
-            纪念那些永远活在我们心中的毛孩子
+            它们去了遥远的喵星，化作最亮的星
           </Text>
           <Text style={styles.headerQuote}>
-            “它们只是先去了彩虹桥的那一边等我们”
+            “每一颗闪烁的星，都是一只在喵星等你的猫咪”
           </Text>
           {/* Stats */}
           {deceasedPets.length > 0 && (
             <View style={styles.headerStats}>
               <View style={styles.headerStatItem}>
                 <Text style={styles.headerStatValue}>{deceasedPets.length}</Text>
-                <Text style={styles.headerStatLabel}>毛孩子</Text>
+                <Text style={styles.headerStatLabel}>喵星居民</Text>
               </View>
               <View style={styles.headerStatDivider} />
               <View style={styles.headerStatItem}>
@@ -369,7 +584,7 @@ export default function DeceasedCatsScreen({ navigation }) {
                 <Text style={styles.headerStatValue}>
                   {deceasedPets.filter((p) => p.memorialNote).length}
                 </Text>
-                <Text style={styles.headerStatLabel}>寄语</Text>
+                <Text style={styles.headerStatLabel}>星际寄语</Text>
               </View>
             </View>
           )}
@@ -382,10 +597,10 @@ export default function DeceasedCatsScreen({ navigation }) {
           </View>
         ) : (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>🍀</Text>
+            <Text style={styles.emptyEmoji}>🌟</Text>
             <Text style={styles.emptyTitle}>所有猫咪都健在</Text>
             <Text style={styles.emptySubtitle}>
-              愿你的猫咪们都健康长寿 ❤️
+              愿你的猫咪们都健康长寿 ✨
             </Text>
           </View>
         )}
@@ -393,9 +608,9 @@ export default function DeceasedCatsScreen({ navigation }) {
         {/* Mark as Deceased Section */}
         {alivePets.length > 0 && (
           <View style={styles.markSection}>
-            <Text style={styles.markSectionTitle}>标记已故猫咪</Text>
+            <Text style={styles.markSectionTitle}>送往喵星</Text>
             <Text style={styles.markSectionSubtitle}>
-              如果你的猫咪已经离开，可以将它添加到纪念册
+              如果你的猫咪已经踏上了去喵星的旅途
             </Text>
             {alivePets.map((pet) => (
               <TouchableOpacity
@@ -440,7 +655,7 @@ export default function DeceasedCatsScreen({ navigation }) {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                🕯️ {selectedPet?.name} 的纪念页
+                ⭐ {selectedPet?.name} 的喵星纪念页
               </Text>
               <TouchableOpacity onPress={() => setShowMemorialModal(false)}>
                 <Ionicons name="close" size={24} color={theme.colors.text} />
@@ -498,7 +713,7 @@ export default function DeceasedCatsScreen({ navigation }) {
                 )}
                 {selectedPet?.deceasedDate && (
                   <View style={styles.modalInfoRow}>
-                    <Text style={styles.modalInfoLabel}>🌟 离开日期</Text>
+                    <Text style={styles.modalInfoLabel}>🌙 出发日期</Text>
                     <Text style={styles.modalInfoValue}>
                       {formatDate(selectedPet.deceasedDate)}
                     </Text>
@@ -506,7 +721,7 @@ export default function DeceasedCatsScreen({ navigation }) {
                 )}
                 {selectedPet?.deceasedDate && (
                   <View style={styles.modalInfoRow}>
-                    <Text style={styles.modalInfoLabel}>⏳ 已离开</Text>
+                    <Text style={styles.modalInfoLabel}>✨ 已到达喵星</Text>
                     <Text style={styles.modalInfoValue}>
                       {getDaysSince(selectedPet.deceasedDate)}
                     </Text>
@@ -524,13 +739,13 @@ export default function DeceasedCatsScreen({ navigation }) {
               {/* Memorial Note */}
               <View style={styles.modalNoteSection}>
                 <View style={styles.modalNoteSectionHeader}>
-                  <Text style={styles.modalNoteTitle}>💝 纪念寄语</Text>
+                  <Text style={styles.modalNoteTitle}>💌 星际寄语</Text>
                   {!isEditingNote ? (
                     <TouchableOpacity
                       onPress={() => setIsEditingNote(true)}
                       style={styles.editNoteBtn}
                     >
-                      <Ionicons name="create-outline" size={20} color={theme.colors.primary} />
+                      <Ionicons name="create-outline" size={20} color="#9B7BFF" />
                       <Text style={styles.editNoteBtnText}>编辑</Text>
                     </TouchableOpacity>
                   ) : (
@@ -557,7 +772,7 @@ export default function DeceasedCatsScreen({ navigation }) {
                 {isEditingNote ? (
                   <TextInput
                     style={styles.modalNoteInput}
-                    placeholder="写下你想对它说的话..."
+                    placeholder="写下你想对喵星的它说的话..."
                     placeholderTextColor={theme.colors.textLight}
                     multiline
                     value={editedNote}
@@ -583,7 +798,7 @@ export default function DeceasedCatsScreen({ navigation }) {
               <View style={styles.modalPhotosSection}>
                 <View style={styles.modalPhotosSectionHeader}>
                   <Text style={styles.modalPhotosSectionTitle}>
-                    📷 纪念相册
+                    🌟 星光相册
                   </Text>
                   <TouchableOpacity
                     onPress={() =>
@@ -593,7 +808,7 @@ export default function DeceasedCatsScreen({ navigation }) {
                     <Ionicons
                       name="add-circle"
                       size={28}
-                      color={theme.colors.primary}
+                      color="#9B7BFF"
                     />
                   </TouchableOpacity>
                 </View>
@@ -621,7 +836,7 @@ export default function DeceasedCatsScreen({ navigation }) {
                   </View>
                 ) : (
                   <Text style={styles.modalPhotosEmpty}>
-                    添加照片来纪念美好时光
+                    添加照片来留住星光下的美好时光
                   </Text>
                 )}
                 {selectedPet?.memorialPhotos && selectedPet.memorialPhotos.length > 0 && (
@@ -640,12 +855,12 @@ export default function DeceasedCatsScreen({ navigation }) {
                 }}
               >
                 <Ionicons
-                  name="arrow-undo"
+                  name="rocket-outline"
                   size={18}
-                  color={theme.colors.info}
+                  color="#9B7BFF"
                 />
                 <Text style={styles.restoreButtonText}>
-                  撤销已故标记
+                  从喵星接回
                 </Text>
               </TouchableOpacity>
 
@@ -668,13 +883,13 @@ export default function DeceasedCatsScreen({ navigation }) {
         >
           <View style={styles.markModalContent}>
             <View style={styles.markModalIcon}>
-              <Text style={{ fontSize: 40 }}>🕯️</Text>
+              <Text style={{ fontSize: 40 }}>🌙</Text>
             </View>
             <Text style={styles.markModalTitle}>
-              纪念 {markPet?.name}
+              送 {markPet?.name} 去喵星
             </Text>
             <Text style={styles.markModalSubtitle}>
-              请填写相关信息，让我们一起纪念它
+              记录它踏上喵星之旅的信息
             </Text>
 
             <TouchableOpacity
@@ -703,7 +918,7 @@ export default function DeceasedCatsScreen({ navigation }) {
                   <Text style={styles.markDateRawText}>{markDate}</Text>
                 </View>
               ) : (
-                <Text style={styles.markDatePlaceholder}>点击选择离开日期</Text>
+                <Text style={styles.markDatePlaceholder}>点击选择出发日期</Text>
               )}
               {markDate ? (
                 <TouchableOpacity
@@ -723,7 +938,7 @@ export default function DeceasedCatsScreen({ navigation }) {
 
             <TextInput
               style={[styles.markModalInput, styles.markModalInputMultiline]}
-              placeholder="写一段纪念寄语..."
+              placeholder="写一段给喵星的寄语..."
               placeholderTextColor={theme.colors.textLight}
               multiline
               numberOfLines={4}
@@ -742,7 +957,7 @@ export default function DeceasedCatsScreen({ navigation }) {
                 style={styles.markModalConfirmButton}
                 onPress={confirmMarkDeceased}
               >
-                <Text style={styles.markModalConfirmText}>🌈 添加到纪念册</Text>
+                <Text style={styles.markModalConfirmText}>⭐ 送往喵星</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -845,43 +1060,64 @@ const createStyles = (theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    // ===== Dreamy Starry Header =====
     headerSection: {
       alignItems: 'center',
-      paddingVertical: theme.spacing.xl,
+      paddingVertical: theme.spacing.xl + 8,
       paddingHorizontal: theme.spacing.lg,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.dark ? '#1A1033' : '#2D1B69',
       marginBottom: theme.spacing.md,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    starryOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 0,
     },
     headerEmoji: {
       fontSize: 64,
       marginBottom: theme.spacing.sm,
+      zIndex: 1,
+      textShadowColor: '#FFD700',
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 20,
     },
     headerTitle: {
-      fontSize: theme.fontSize.xxl,
+      fontSize: theme.fontSize.xxl + 2,
       fontWeight: theme.fontWeight.bold,
-      color: theme.colors.text,
+      color: '#F0E6FF',
       marginBottom: theme.spacing.xs,
+      zIndex: 1,
+      textShadowColor: '#B8A9FF',
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 10,
+      letterSpacing: 2,
     },
     headerSubtitle: {
       fontSize: theme.fontSize.md,
-      color: theme.colors.textSecondary,
+      color: '#C8B8E8',
       textAlign: 'center',
       marginBottom: theme.spacing.sm,
+      zIndex: 1,
     },
     headerQuote: {
       fontSize: theme.fontSize.sm,
-      color: theme.colors.textLight,
+      color: '#A090C0',
       fontStyle: 'italic',
       textAlign: 'center',
+      zIndex: 1,
     },
     headerStats: {
       flexDirection: 'row',
       alignItems: 'center',
       marginTop: theme.spacing.md,
-      backgroundColor: theme.colors.background,
-      borderRadius: theme.borderRadius.md,
-      paddingVertical: theme.spacing.sm,
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderRadius: theme.borderRadius.lg,
+      paddingVertical: theme.spacing.sm + 4,
       paddingHorizontal: theme.spacing.lg,
+      zIndex: 1,
+      borderWidth: 1,
+      borderColor: 'rgba(180, 160, 255, 0.15)',
     },
     headerStatItem: {
       alignItems: 'center',
@@ -890,20 +1126,23 @@ const createStyles = (theme) =>
     headerStatValue: {
       fontSize: theme.fontSize.xl,
       fontWeight: theme.fontWeight.bold,
-      color: '#BA90C6',
+      color: '#E8DEFF',
+      textShadowColor: '#9B7BFF',
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 8,
     },
     headerStatLabel: {
       fontSize: theme.fontSize.xs,
-      color: theme.colors.textSecondary,
+      color: '#B0A0D0',
       marginTop: 2,
     },
     headerStatDivider: {
       width: 1,
       height: 28,
-      backgroundColor: theme.colors.border,
+      backgroundColor: 'rgba(180, 160, 255, 0.2)',
       marginHorizontal: theme.spacing.sm,
     },
-    // Memorial Cards
+    // ===== Memorial Cards - Dreamy Style =====
     memorialListContainer: {
       paddingHorizontal: theme.spacing.md,
     },
@@ -913,31 +1152,36 @@ const createStyles = (theme) =>
       marginBottom: theme.spacing.md,
       overflow: 'hidden',
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.dark ? 'rgba(147, 112, 219, 0.3)' : 'rgba(147, 112, 219, 0.15)',
+      shadowColor: '#7B68EE',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 3,
     },
     memorialCardAnniversary: {
-      borderColor: '#BA90C6',
+      borderColor: '#9B7BFF',
       borderWidth: 2,
     },
     anniversaryBanner: {
-      backgroundColor: '#BA90C620',
+      backgroundColor: '#9B7BFF18',
       paddingVertical: theme.spacing.xs,
       paddingHorizontal: theme.spacing.md,
       alignItems: 'center',
     },
     anniversaryText: {
       fontSize: theme.fontSize.sm,
-      color: '#BA90C6',
+      color: '#9B7BFF',
       fontWeight: theme.fontWeight.semibold,
     },
-    candleDecor: {
+    starDecor: {
       position: 'absolute',
       top: theme.spacing.sm,
       right: theme.spacing.sm,
       zIndex: 1,
     },
-    candleEmoji: {
-      fontSize: 20,
+    starEmoji: {
+      fontSize: 18,
     },
     memorialCardInner: {
       flexDirection: 'row',
@@ -952,22 +1196,22 @@ const createStyles = (theme) =>
       height: 64,
       borderRadius: 32,
       borderWidth: 2,
-      borderColor: theme.colors.primaryLight,
+      borderColor: '#B8A9FF',
     },
     memorialPhotoPlaceholder: {
       width: 64,
       height: 64,
       borderRadius: 32,
-      backgroundColor: theme.colors.primaryLight + '30',
+      backgroundColor: '#E8DEFF30',
       justifyContent: 'center',
       alignItems: 'center',
       borderWidth: 2,
-      borderColor: theme.colors.primaryLight,
+      borderColor: '#B8A9FF',
     },
     memorialPhotoEmoji: {
       fontSize: 32,
     },
-    rainbowBridge: {
+    catStarBadge: {
       position: 'absolute',
       bottom: -4,
       right: -4,
@@ -977,8 +1221,12 @@ const createStyles = (theme) =>
       backgroundColor: theme.colors.surface,
       justifyContent: 'center',
       alignItems: 'center',
+      shadowColor: '#FFD700',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 4,
     },
-    rainbowEmoji: {
+    catStarEmoji: {
       fontSize: 14,
     },
     memorialInfo: {
@@ -1016,12 +1264,12 @@ const createStyles = (theme) =>
     },
     memorialDate: {
       fontSize: theme.fontSize.sm,
-      color: theme.colors.textLight,
+      color: '#9B7BFF',
       marginTop: 4,
     },
     memorialDaysSince: {
       fontSize: theme.fontSize.xs,
-      color: theme.colors.textLight,
+      color: '#B0A0D0',
       marginTop: 2,
     },
     memorialNotePreview: {
@@ -1034,7 +1282,7 @@ const createStyles = (theme) =>
       fontStyle: 'italic',
       lineHeight: 18,
     },
-    // Empty State
+    // ===== Empty State =====
     emptyContainer: {
       alignItems: 'center',
       paddingVertical: theme.spacing.xxl,
@@ -1055,13 +1303,15 @@ const createStyles = (theme) =>
       color: theme.colors.textSecondary,
       textAlign: 'center',
     },
-    // Mark Section
+    // ===== Mark Section =====
     markSection: {
       marginHorizontal: theme.spacing.md,
       marginTop: theme.spacing.md,
       backgroundColor: theme.colors.surface,
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: theme.dark ? 'rgba(147, 112, 219, 0.2)' : 'rgba(147, 112, 219, 0.1)',
     },
     markSectionTitle: {
       fontSize: theme.fontSize.md,
@@ -1096,7 +1346,7 @@ const createStyles = (theme) =>
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: theme.colors.primaryLight + '40',
+      backgroundColor: '#E8DEFF30',
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -1105,10 +1355,10 @@ const createStyles = (theme) =>
       fontWeight: theme.fontWeight.medium,
       color: theme.colors.text,
     },
-    // Memorial Detail Modal
+    // ===== Memorial Detail Modal =====
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(20, 10, 40, 0.7)',
       justifyContent: 'flex-end',
     },
     modalContent: {
@@ -1123,7 +1373,7 @@ const createStyles = (theme) =>
       justifyContent: 'space-between',
       padding: theme.spacing.md,
       borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
+      borderBottomColor: theme.dark ? 'rgba(147, 112, 219, 0.2)' : theme.colors.border,
     },
     modalTitle: {
       fontSize: theme.fontSize.lg,
@@ -1149,31 +1399,36 @@ const createStyles = (theme) =>
       left: 0,
       right: 0,
       padding: theme.spacing.md,
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      backgroundColor: 'rgba(20, 10, 50, 0.6)',
     },
     modalPhotoName: {
       fontSize: theme.fontSize.xxl,
       fontWeight: theme.fontWeight.bold,
-      color: '#FFFFFF',
+      color: '#F0E6FF',
+      textShadowColor: '#9B7BFF',
+      textShadowOffset: { width: 0, height: 0 },
+      textShadowRadius: 6,
     },
     modalPhotoDates: {
       fontSize: theme.fontSize.sm,
-      color: '#FFFFFF',
+      color: '#D0C0F0',
       opacity: 0.9,
       marginTop: 4,
     },
     modalInfoSection: {
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.dark ? 'rgba(30, 20, 60, 0.4)' : theme.colors.background,
       borderRadius: theme.borderRadius.md,
       padding: theme.spacing.md,
       marginBottom: theme.spacing.md,
+      borderWidth: theme.dark ? 1 : 0,
+      borderColor: 'rgba(147, 112, 219, 0.15)',
     },
     modalInfoRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       paddingVertical: theme.spacing.sm,
       borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
+      borderBottomColor: theme.dark ? 'rgba(147, 112, 219, 0.1)' : theme.colors.border,
     },
     modalInfoLabel: {
       fontSize: theme.fontSize.md,
@@ -1207,7 +1462,7 @@ const createStyles = (theme) =>
     },
     editNoteBtnText: {
       fontSize: theme.fontSize.sm,
-      color: theme.colors.primary,
+      color: '#9B7BFF',
       fontWeight: theme.fontWeight.medium,
     },
     noteActionBtns: {
@@ -1232,7 +1487,7 @@ const createStyles = (theme) =>
       paddingHorizontal: theme.spacing.md,
       paddingVertical: 6,
       borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: '#7B68EE',
     },
     saveNoteBtnText: {
       fontSize: theme.fontSize.sm,
@@ -1242,10 +1497,10 @@ const createStyles = (theme) =>
     modalNoteDisplay: {
       minHeight: 80,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.dark ? 'rgba(147, 112, 219, 0.2)' : theme.colors.border,
       borderRadius: theme.borderRadius.md,
       padding: theme.spacing.md,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.dark ? 'rgba(30, 20, 60, 0.3)' : theme.colors.background,
     },
     modalNoteDisplayText: {
       fontSize: theme.fontSize.md,
@@ -1260,12 +1515,12 @@ const createStyles = (theme) =>
     modalNoteInput: {
       minHeight: 80,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.dark ? 'rgba(147, 112, 219, 0.3)' : theme.colors.border,
       borderRadius: theme.borderRadius.md,
       padding: theme.spacing.md,
       fontSize: theme.fontSize.md,
       color: theme.colors.text,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.dark ? 'rgba(30, 20, 60, 0.3)' : theme.colors.background,
       textAlignVertical: 'top',
     },
     modalPhotosSection: {
@@ -1312,14 +1567,14 @@ const createStyles = (theme) =>
     },
     modalAnniversaryRow: {
       justifyContent: 'center',
-      backgroundColor: '#BA90C610',
+      backgroundColor: '#9B7BFF10',
       borderRadius: theme.borderRadius.sm,
       marginTop: theme.spacing.xs,
       borderBottomWidth: 0,
     },
     modalAnniversaryText: {
       fontSize: theme.fontSize.md,
-      color: '#BA90C6',
+      color: '#9B7BFF',
       fontWeight: theme.fontWeight.semibold,
       textAlign: 'center',
     },
@@ -1331,18 +1586,19 @@ const createStyles = (theme) =>
       paddingVertical: theme.spacing.md,
       marginTop: theme.spacing.md,
       borderWidth: 1,
-      borderColor: theme.colors.info,
+      borderColor: '#9B7BFF60',
       borderRadius: theme.borderRadius.md,
+      backgroundColor: '#9B7BFF08',
     },
     restoreButtonText: {
       fontSize: theme.fontSize.md,
-      color: theme.colors.info,
+      color: '#9B7BFF',
       fontWeight: theme.fontWeight.medium,
     },
-    // Mark Deceased Modal
+    // ===== Mark Deceased Modal - Dreamy Style =====
     markModalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(20, 10, 40, 0.7)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: theme.spacing.lg,
@@ -1354,6 +1610,8 @@ const createStyles = (theme) =>
       width: '100%',
       maxWidth: 360,
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.dark ? 'rgba(147, 112, 219, 0.2)' : 'rgba(147, 112, 219, 0.1)',
     },
     markModalIcon: {
       marginBottom: theme.spacing.md,
@@ -1385,8 +1643,8 @@ const createStyles = (theme) =>
       minHeight: 48,
     },
     markDatePickerBtnFilled: {
-      borderColor: theme.colors.primary + '60',
-      backgroundColor: theme.colors.primary + '08',
+      borderColor: '#9B7BFF60',
+      backgroundColor: '#9B7BFF08',
     },
     markDateDisplayText: {
       fontSize: theme.fontSize.md,
@@ -1459,18 +1717,24 @@ const createStyles = (theme) =>
       flex: 1.5,
       height: 44,
       borderRadius: theme.borderRadius.md,
-      backgroundColor: '#BA90C6',
+      backgroundColor: '#7B68EE',
       justifyContent: 'center',
       alignItems: 'center',
+      shadowColor: '#7B68EE',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 4,
     },
     markModalConfirmText: {
       fontSize: theme.fontSize.md,
       fontWeight: theme.fontWeight.medium,
       color: '#FFFFFF',
     },
+    // ===== Photo Viewer =====
     photoViewerOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.95)',
+      backgroundColor: 'rgba(10, 5, 30, 0.97)',
       justifyContent: 'center',
       alignItems: 'center',
     },

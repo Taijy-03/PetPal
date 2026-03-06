@@ -4,7 +4,9 @@ import * as Storage from '../utils/storage';
 import {
   scheduleReminderNotification,
   cancelReminderNotification,
+  cancelAllNotifications,
   rescheduleAllReminders,
+  requestNotificationPermissions,
   isExpoGo,
 } from '../utils/notifications';
 import { LightTheme, DarkTheme } from '../theme/theme';
@@ -242,6 +244,7 @@ export function AppProvider({ children }) {
 
   const checkDueReminders = useCallback(() => {
     if (!isExpoGo) return; // Native notifications handle this in dev builds
+    if (!state.settings?.notificationsEnabled) return; // Respect user setting
     const now = new Date();
     const { reminders, pets } = state;
 
@@ -387,7 +390,7 @@ export function AppProvider({ children }) {
     await Storage.addReminder(reminder);
     dispatch({ type: actionTypes.ADD_REMINDER, payload: reminder });
     // Schedule device notification
-    if (reminder.isActive !== false) {
+    if (reminder.isActive !== false && state.settings?.notificationsEnabled !== false) {
       const pet = state.pets.find((p) => p.id === reminder.petId);
       await scheduleReminderNotification(reminder, pet?.name);
     }
@@ -397,7 +400,7 @@ export function AppProvider({ children }) {
     await Storage.updateReminder(reminder);
     dispatch({ type: actionTypes.UPDATE_REMINDER, payload: reminder });
     // Update device notification
-    if (reminder.isActive !== false) {
+    if (reminder.isActive !== false && state.settings?.notificationsEnabled !== false) {
       const pet = state.pets.find((p) => p.id === reminder.petId);
       await scheduleReminderNotification(reminder, pet?.name);
     } else {
@@ -416,6 +419,20 @@ export function AppProvider({ children }) {
     const updated = { ...state.settings, ...newSettings };
     await Storage.saveSettings(updated);
     dispatch({ type: actionTypes.UPDATE_SETTINGS, payload: newSettings });
+
+    // Handle notifications toggle
+    if ('notificationsEnabled' in newSettings) {
+      if (newSettings.notificationsEnabled) {
+        // Request permission then reschedule all active reminders
+        const granted = await requestNotificationPermissions();
+        if (granted) {
+          await rescheduleAllReminders(state.reminders, state.pets);
+        }
+      } else {
+        // Cancel all scheduled notifications
+        await cancelAllNotifications();
+      }
+    }
   };
 
   // Clear all

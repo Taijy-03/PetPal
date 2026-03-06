@@ -14,6 +14,7 @@ import {
   FormInput,
   FormPicker,
   FormDateInput,
+  FormTimeInput,
   FormButton,
   FormPetPicker,
 } from '../components/FormElements';
@@ -33,36 +34,6 @@ const REMINDER_TYPES = [
   { label: '其他', value: 'other', icon: '📝' },
 ];
 
-// Auto-format date input: adds dashes as user types (YYYY-MM-DD)
-function formatDateInput(text) {
-  // Strip non-digits
-  const digits = text.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 4) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
-  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
-}
-
-// Auto-format time input: adds colon as user types (HH:MM)
-function formatTimeInput(text) {
-  const digits = text.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
-}
-
-// Validate date string YYYY-MM-DD
-function isValidDate(str) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) return false;
-  const [y, m, d] = str.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
-}
-
-// Validate time string HH:MM
-function isValidTime(str) {
-  if (!/^\d{2}:\d{2}$/.test(str)) return false;
-  const [h, m] = str.split(':').map(Number);
-  return h >= 0 && h <= 23 && m >= 0 && m <= 59;
-}
 
 export default function AddReminderScreen({ navigation, route }) {
   const { petId: routePetId } = route.params || {};
@@ -91,14 +62,10 @@ export default function AddReminderScreen({ navigation, route }) {
       newErrors.title = '请输入提醒标题';
     }
     if (!dateTime) {
-      newErrors.date = '请输入日期';
-    } else if (!isValidDate(dateTime)) {
-      newErrors.date = '日期格式不正确，请输入 YYYY-MM-DD';
+      newErrors.date = '请选择日期';
     }
     if (!time) {
-      newErrors.time = '请输入时间';
-    } else if (!isValidTime(time)) {
-      newErrors.time = '时间格式不正确，请输入 HH:MM（00:00-23:59）';
+      newErrors.time = '请选择时间';
     }
 
     // Check if the date/time is in the past
@@ -108,17 +75,13 @@ export default function AddReminderScreen({ navigation, route }) {
         if (frequency === 'once') {
           newErrors.date = '提醒时间已过，请选择未来的日期和时间';
         } else {
-          // For repeating reminders, warn but allow saving
-          // The next occurrence will still fire at the correct time
           newErrors.date = '起始时间已过，首次提醒将在下一个周期触发';
-          // Mark it as a warning, not a blocking error
           newErrors._dateIsWarning = true;
         }
       }
     }
 
     setErrors(newErrors);
-    // _dateIsWarning means it's just a warning for repeating reminders, not a blocker
     const blockingErrors = Object.keys(newErrors).filter((k) => k !== '_dateIsWarning');
     return blockingErrors.length === 0 || (blockingErrors.length === 1 && blockingErrors[0] === 'date' && newErrors._dateIsWarning);
   };
@@ -170,15 +133,6 @@ export default function AddReminderScreen({ navigation, route }) {
     }
   };
 
-  const handleDateChange = (text) => {
-    setDateTime(text);
-    if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
-  };
-
-  const handleTimeChange = (text) => {
-    setTime(formatTimeInput(text));
-    if (errors.time) setErrors((prev) => ({ ...prev, time: undefined }));
-  };
 
   return (
     <KeyboardAvoidingView
@@ -237,31 +191,32 @@ export default function AddReminderScreen({ navigation, route }) {
           onChange={setType}
         />
 
-        <View style={styles.row}>
-          <View style={styles.flex}>
-            <FormDateInput
-              label="日期"
-              value={dateTime}
-              onChange={handleDateChange}
-              placeholder="YYYY-MM-DD"
-              required
-              error={errors.date}
-              isWarning={errors._dateIsWarning}
-            />
-          </View>
-          <View style={styles.flex}>
-            <FormInput
-              label="时间"
-              value={time}
-              onChangeText={handleTimeChange}
-              placeholder="HH:MM"
-              icon="time-outline"
-              keyboardType="number-pad"
-              required
-              error={errors.time}
-            />
-          </View>
-        </View>
+        <FormDateInput
+          label="日期"
+          value={dateTime}
+          onChange={(val) => {
+            setDateTime(val);
+            if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
+          }}
+          required
+          error={errors.date}
+          isWarning={errors._dateIsWarning}
+          allowFuture
+          hideAgeHint
+          minDate={new Date().toISOString().slice(0, 10)}
+          validationMessage="⚠️ 提醒时间不能是过去的日期"
+        />
+
+        <FormTimeInput
+          label="时间"
+          value={time}
+          onChange={(val) => {
+            setTime(val);
+            if (errors.time) setErrors((prev) => ({ ...prev, time: undefined }));
+          }}
+          required
+          error={errors.time}
+        />
 
         <FormPicker
           label="频率"

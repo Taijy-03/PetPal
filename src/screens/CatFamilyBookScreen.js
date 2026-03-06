@@ -267,7 +267,7 @@ export default function CatFamilyBookScreen({ navigation }) {
         )}
         {pet.isDeceased && (
           <View style={styles.treeNodeBadge}>
-            <Text style={{ fontSize: 10 }}>🌈</Text>
+            <Text style={{ fontSize: 10 }}>⭐</Text>
           </View>
         )}
         {pet.gender && (
@@ -667,7 +667,7 @@ export default function CatFamilyBookScreen({ navigation }) {
                         </Text>
                       </View>
                       {item.isDeceased && (
-                        <Text style={styles.petPickDeceased}>🌈 已故</Text>
+                        <Text style={styles.petPickDeceased}>⭐ 喵星</Text>
                       )}
                     </TouchableOpacity>
                   )}

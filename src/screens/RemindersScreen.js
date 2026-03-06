@@ -151,25 +151,18 @@ export default function RemindersScreen({ navigation }) {
 
       {/* Stats Overview */}
       <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{stats.total}</Text>
-          <Text style={styles.statLabel}>全部</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: theme.colors.success }]}>{stats.active}</Text>
-          <Text style={styles.statLabel}>进行中</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: theme.colors.warning }]}>{stats.past}</Text>
-          <Text style={styles.statLabel}>已过期</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={[styles.statNumber, { color: theme.colors.textLight }]}>{stats.inactive}</Text>
-          <Text style={styles.statLabel}>已关闭</Text>
-        </View>
+        {[
+          { label: '全部', value: stats.total, color: theme.colors.text, icon: 'list-outline' },
+          { label: '进行中', value: stats.active, color: theme.colors.success, icon: 'checkmark-circle-outline' },
+          { label: '已过期', value: stats.past, color: theme.colors.warning, icon: 'alert-circle-outline' },
+          { label: '已关闭', value: stats.inactive, color: theme.colors.textLight, icon: 'pause-circle-outline' },
+        ].map((s, i) => (
+          <View key={s.label} style={styles.statChip}>
+            <Ionicons name={s.icon} size={16} color={s.color} />
+            <Text style={[styles.statNumber, { color: s.color }]}>{s.value}</Text>
+            <Text style={styles.statLabel}>{s.label}</Text>
+          </View>
+        ))}
       </View>
 
       {/* Filter Tabs */}
@@ -220,13 +213,13 @@ export default function RemindersScreen({ navigation }) {
                 onLongPress={() => handleDelete(item)}
                 activeOpacity={0.7}
               >
-                {/* Colored top accent */}
-                <View style={[styles.cardAccent, { backgroundColor: isActive ? typeColor : theme.colors.textLight }]} />
+                {/* Left accent bar */}
+                <View style={[styles.cardAccent, { backgroundColor: isActive ? typeColor : theme.colors.border }]} />
 
                 <View style={styles.cardBody}>
-                  {/* Top Row: icon + title + switch */}
+                  {/* Top: icon + title + switch */}
                   <View style={styles.cardTopRow}>
-                    <View style={[styles.typeIconBox, { backgroundColor: typeColor + '20' }]}>
+                    <View style={[styles.typeIconBox, { backgroundColor: typeColor + '22' }]}>
                       <Text style={styles.typeIcon}>{typeIcon}</Text>
                     </View>
                     <View style={styles.titleArea}>
@@ -234,18 +227,10 @@ export default function RemindersScreen({ navigation }) {
                         {item.title}
                       </Text>
                       <View style={styles.metaRow}>
-                        <Text style={styles.frequencyTag}>
-                          {getFrequencyLabel(item.frequency)}
-                        </Text>
+                        <Text style={styles.frequencyTag}>{getFrequencyLabel(item.frequency)}</Text>
                         {countdown && (
-                          <View style={[
-                            styles.countdownTag,
-                            countdown.urgent && styles.countdownTagUrgent,
-                          ]}>
-                            <Text style={[
-                              styles.countdownTagText,
-                              countdown.urgent && styles.countdownTagTextUrgent,
-                            ]}>
+                          <View style={[styles.countdownTag, countdown.urgent && styles.countdownTagUrgent]}>
+                            <Text style={[styles.countdownTagText, countdown.urgent && styles.countdownTagTextUrgent]}>
                               {countdown.text}
                             </Text>
                           </View>
@@ -255,54 +240,41 @@ export default function RemindersScreen({ navigation }) {
                     <Switch
                       value={isActive}
                       onValueChange={() => toggleReminder(item)}
-                      trackColor={{
-                        false: theme.colors.border,
-                        true: theme.colors.primary + '50',
-                      }}
+                      trackColor={{ false: theme.colors.border, true: theme.colors.primary + '50' }}
                       thumbColor={isActive ? theme.colors.primary : theme.colors.textLight}
                       style={styles.switch}
                     />
                   </View>
 
-                  {/* Date/Time Row */}
+                  {/* Date + Time chips */}
                   <View style={styles.dateRow}>
-                    <View style={styles.dateItem}>
-                      <Ionicons name="calendar-outline" size={14} color={theme.colors.textSecondary} />
-                      <Text style={styles.dateText}>{formatDate(item.dateTime)}</Text>
+                    <View style={styles.dateChip}>
+                      <Ionicons name="calendar-outline" size={12} color={theme.colors.primary} />
+                      <Text style={styles.dateChipText}>{formatDate(item.dateTime)}</Text>
                     </View>
-                    <View style={styles.dateItem}>
-                      <Ionicons name="time-outline" size={14} color={theme.colors.textSecondary} />
-                      <Text style={styles.dateText}>{formatTime(item.dateTime)}</Text>
+                    <View style={styles.dateChip}>
+                      <Ionicons name="time-outline" size={12} color={theme.colors.primary} />
+                      <Text style={styles.dateChipText}>{formatTime(item.dateTime)}</Text>
                     </View>
+                    {/* Pet avatar right-aligned */}
+                    <View style={{ flex: 1 }} />
+                    {pet && (
+                      <View style={styles.petBadge}>
+                        {pet.photo ? (
+                          <Image source={{ uri: pet.photo }} style={styles.petMiniAvatar} />
+                        ) : (
+                          <View style={styles.petMiniAvatarPlaceholder}>
+                            <Text style={styles.petMiniEmoji}>{getPetTypeIcon(pet.type)}</Text>
+                          </View>
+                        )}
+                        <Text style={styles.petMiniName} numberOfLines={1}>{pet.name}</Text>
+                      </View>
+                    )}
                   </View>
 
-                  {/* Pet Row */}
-                  {pet && (
-                    <View style={styles.petRow}>
-                      {pet.photo ? (
-                        <Image source={{ uri: pet.photo }} style={styles.petMiniAvatar} />
-                      ) : (
-                        <View style={styles.petMiniAvatarPlaceholder}>
-                          <Text style={styles.petMiniEmoji}>{getPetTypeIcon(pet.type)}</Text>
-                        </View>
-                      )}
-                      <Text style={styles.petMiniName}>{pet.name}</Text>
-                      {pet.gender && (
-                        <Text style={[
-                          styles.petMiniGender,
-                          { color: pet.gender === 'male' ? '#3B82F6' : '#EC4899' },
-                        ]}>
-                          {pet.gender === 'male' ? '♂' : '♀'}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-
-                  {/* Notes preview */}
+                  {/* Notes */}
                   {item.notes ? (
-                    <Text style={styles.notesPreview} numberOfLines={1}>
-                      📝 {item.notes}
-                    </Text>
+                    <Text style={styles.notesPreview} numberOfLines={1}>📝 {item.notes}</Text>
                   ) : null}
                 </View>
               </TouchableOpacity>
@@ -347,23 +319,18 @@ const createStyles = (theme) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  statItem: {
+  statChip: {
     alignItems: 'center',
+    gap: 2,
   },
   statNumber: {
-    fontSize: theme.fontSize.xl,
+    fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
   },
   statLabel: {
     fontSize: theme.fontSize.xs,
     color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: theme.colors.border,
   },
 
   // Filter
@@ -422,6 +389,7 @@ const createStyles = (theme) => StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.sm + 2,
     overflow: 'hidden',
+    flexDirection: 'row',
     shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -432,9 +400,10 @@ const createStyles = (theme) => StyleSheet.create({
     opacity: 0.55,
   },
   cardAccent: {
-    height: 3,
+    width: 4,
   },
   cardBody: {
+    flex: 1,
     padding: theme.spacing.md,
   },
   cardTopRow: {
@@ -500,31 +469,37 @@ const createStyles = (theme) => StyleSheet.create({
     marginLeft: theme.spacing.sm,
   },
 
-  // Date Row
+  // Date chips
   dateRow: {
     flexDirection: 'row',
-    gap: theme.spacing.lg,
+    alignItems: 'center',
+    gap: theme.spacing.sm,
     marginTop: theme.spacing.sm + 2,
     paddingTop: theme.spacing.sm + 2,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
-  dateItem: {
+  dateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: theme.colors.primary + '12',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 3,
+    borderRadius: theme.borderRadius.round,
+  },
+  dateChipText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.primary,
+    fontWeight: theme.fontWeight.medium,
+  },
+
+  // Pet badge (inline in date row)
+  petBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  dateText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-  },
-
-  // Pet Row
-  petRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: theme.spacing.sm,
-    gap: theme.spacing.sm,
+    maxWidth: 90,
   },
   petMiniAvatar: {
     width: 24,

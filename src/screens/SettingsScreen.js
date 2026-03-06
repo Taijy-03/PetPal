@@ -175,10 +175,10 @@ export default function SettingsScreen({ navigation }) {
     );
   };
 
-  const StatItem = ({ icon, color, label, value }) => (
+  const StatItem = ({ icon, color, label, value, iconStyle }) => (
     <View style={styles.statItem}>
       <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={24} color={color} />
+        <Ionicons name={icon} size={24} color={color} style={iconStyle} />
       </View>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
@@ -197,7 +197,7 @@ export default function SettingsScreen({ navigation }) {
               revealHiddenFeatures();
               Alert.alert(
                 '🐾 喵~ 你发现了秘密！',
-                '猫咪家庭树和彩虹桥纪念册已解锁。\n\n📖 家庭树：记录猫咪之间的亲属关系\n🌈 纪念册：永远纪念离开的毛孩子',
+                '猫咪家庭树和喵星纪念册已解锁。\n\n🌳 家庭树：记录猫咪之间的亲属关系\n🌙 纪念册：纪念去了喵星的猫咪',
               );
             } else if (newCount >= 3 && newCount < 7) {
               // No alert, just show progress
@@ -208,7 +208,7 @@ export default function SettingsScreen({ navigation }) {
               revealHiddenFeatures();
               Alert.alert(
                 '🐾 喵~ 你发现了秘密！',
-                '猫咪家庭树和彩虹桥纪念册已解锁。\n\n📖 家庭树：记录猫咪之间的亲属关系\n🌈 纪念册：永远纪念离开的毛孩子',
+                '猫咪家庭树和喵星纪念册已解锁。\n\n🌳 家庭树：记录猫咪之间的亲属关系\n🌙 纪念册：纪念去了喵星的猫咪',
               );
             }
           }}
@@ -376,17 +376,18 @@ export default function SettingsScreen({ navigation }) {
           />
           {showHiddenFeatures && familyRelationsCount > 0 && (
             <StatItem
-              icon="git-merge"
+              icon="git-network"
               color="#E8C547"
               label="家庭关系"
               value={Math.round(familyRelationsCount)}
+              iconStyle={{ transform: [{ scaleY: -1 }] }}
             />
           )}
           {showHiddenFeatures && deceasedPetsCount > 0 && (
             <StatItem
               icon="heart-half"
               color="#BA90C6"
-              label="已故猫咪"
+              label="喵星猫咪"
               value={deceasedPetsCount}
             />
           )}
@@ -419,7 +420,7 @@ export default function SettingsScreen({ navigation }) {
           >
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: '#E8C54720' }]}>
-                <Ionicons name="git-network" size={20} color="#E8C547" />
+                <Ionicons name="git-network" size={20} color="#E8C547" style={{ transform: [{ scaleY: -1 }] }} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.settingLabel}>🌳 猫咪家庭树</Text>
@@ -451,7 +452,7 @@ export default function SettingsScreen({ navigation }) {
                 <Ionicons name="heart-half" size={20} color="#BA90C6" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.settingLabel}>🌈 彩虹桥纪念册</Text>
+                <Text style={styles.settingLabel}>🌙 喵星纪念册</Text>
                 <Text style={styles.settingDescription}>
                   永远纪念已离开的毛孩子
                 </Text>

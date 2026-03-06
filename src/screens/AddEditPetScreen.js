@@ -150,33 +150,11 @@ export default function AddEditPetScreen({ navigation, route }) {
     ]);
   };
 
-  const validateBirthDate = (dateStr) => {
-    if (!dateStr) return null; // optional field
-    if (dateStr.length !== 10) return '请输入完整日期，格式: YYYY-MM-DD';
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) return '日期格式错误，请使用 YYYY-MM-DD';
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10);
-    const day = parseInt(parts[2], 10);
-    if (isNaN(year) || isNaN(month) || isNaN(day)) return '日期包含无效字符';
-    if (month < 1 || month > 12) return '月份必须在 1-12 之间';
-    const daysInMonth = new Date(year, month, 0).getDate();
-    if (day < 1 || day > daysInMonth) return `${month}月最多有 ${daysInMonth} 天`;
-    const date = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (date > today) return '出生日期不能是未来的日期';
-    if (year < 1980) return '日期不太合理，请检查年份';
-    return null;
-  };
-
   const validate = () => {
     const newErrors = {};
     if (!name.trim()) newErrors.name = '请输入猫咪名字';
     if (weight && isNaN(parseFloat(weight)))
       newErrors.weight = '请输入有效的体重';
-    const birthDateError = validateBirthDate(birthDate);
-    if (birthDateError) newErrors.birthDate = birthDateError;
     if (breed === 'other' && !customBreed.trim())
       newErrors.customBreed = '请输入自定义品种名称';
     if (hasMicrochip && !microchip.trim())

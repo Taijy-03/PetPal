@@ -130,7 +130,9 @@ export default function AddHealthRecordScreen({ navigation, route }) {
           label="下次日期"
           value={nextDueDate}
           onChange={setNextDueDate}
-          placeholder="YYYY-MM-DD (可选)"
+          placeholder="可选"
+          allowFuture
+          minDate={date}
         />
 
         <FormInput

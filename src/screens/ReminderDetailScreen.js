@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   Switch,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp, useTheme } from '../context/AppContext';
@@ -68,6 +69,9 @@ export default function ReminderDetailScreen({ navigation, route }) {
   const reminder = reminders.find((r) => r.id === reminderId);
   const pet = reminder ? pets.find((p) => p.id === reminder.petId) : null;
 
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState(reminder?.notes || '');
+
   if (!reminder) {
     return (
       <View style={styles.centered}>
@@ -87,6 +91,11 @@ export default function ReminderDetailScreen({ navigation, route }) {
       ...reminder,
       isActive: !isActive,
     });
+  };
+
+  const handleSaveNotes = async () => {
+    await updateReminder({ ...reminder, notes: notesValue.trim() });
+    setEditingNotes(false);
   };
 
   const handleDelete = () => {
@@ -250,12 +259,40 @@ export default function ReminderDetailScreen({ navigation, route }) {
       </View>
 
       {/* Notes */}
-      {reminder.notes ? (
-        <View style={styles.card}>
+      <View style={styles.card}>
+        <View style={styles.notesTitleRow}>
           <Text style={styles.cardSectionTitle}>备注</Text>
-          <Text style={styles.notesText}>{reminder.notes}</Text>
+          {!editingNotes ? (
+            <TouchableOpacity onPress={() => { setNotesValue(reminder.notes || ''); setEditingNotes(true); }}>
+              <Ionicons name="pencil-outline" size={18} color={theme.colors.primary} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.notesActions}>
+              <TouchableOpacity onPress={() => setEditingNotes(false)} style={styles.notesCancelBtn}>
+                <Text style={styles.notesCancelText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveNotes} style={styles.notesSaveBtn}>
+                <Text style={styles.notesSaveText}>保存</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
-      ) : null}
+        {editingNotes ? (
+          <TextInput
+            style={styles.notesInput}
+            value={notesValue}
+            onChangeText={setNotesValue}
+            placeholder="添加备注..."
+            placeholderTextColor={theme.colors.textLight}
+            multiline
+            autoFocus
+          />
+        ) : (
+          <Text style={reminder.notes ? styles.notesText : styles.notesPlaceholder}>
+            {reminder.notes || '暂无备注，点击 ✏️ 添加'}
+          </Text>
+        )}
+      </View>
 
       {/* Frequency Info */}
       {reminder.frequency !== 'once' && (
@@ -545,6 +582,51 @@ const createStyles = (theme) =>
     notesText: {
       fontSize: theme.fontSize.md,
       color: theme.colors.textSecondary,
+      lineHeight: 22,
+    },
+    notesPlaceholder: {
+      fontSize: theme.fontSize.md,
+      color: theme.colors.textLight,
+      fontStyle: 'italic',
+    },
+    notesTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: theme.spacing.sm,
+    },
+    notesActions: {
+      flexDirection: 'row',
+      gap: theme.spacing.sm,
+    },
+    notesCancelBtn: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: 4,
+    },
+    notesCancelText: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.textSecondary,
+    },
+    notesSaveBtn: {
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: 4,
+      borderRadius: theme.borderRadius.round,
+    },
+    notesSaveText: {
+      fontSize: theme.fontSize.sm,
+      fontWeight: theme.fontWeight.bold,
+      color: '#FFF',
+    },
+    notesInput: {
+      fontSize: theme.fontSize.md,
+      color: theme.colors.text,
+      borderWidth: 1,
+      borderColor: theme.colors.primary + '50',
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.sm,
+      minHeight: 80,
+      textAlignVertical: 'top',
       lineHeight: 22,
     },
 
