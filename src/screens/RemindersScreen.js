@@ -55,9 +55,21 @@ export default function RemindersScreen({ navigation }) {
   const now = new Date();
 
   const filteredReminders = useMemo(() => {
-    const sorted = [...reminders].sort(
-      (a, b) => new Date(a.dateTime) - new Date(b.dateTime)
-    );
+    const sorted = [...reminders].sort((a, b) => {
+      const aActive = a.isActive !== false;
+      const bActive = b.isActive !== false;
+      
+      // 进行中的提醒放在前面，已关闭的放在后面
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      
+      // 同为进行中：按时间正序排列（最近的在上面）
+      if (aActive) {
+        return new Date(a.dateTime) - new Date(b.dateTime);
+      }
+      // 同为已关闭：按时间倒序排列（刚关闭的在上面）
+      return new Date(b.dateTime) - new Date(a.dateTime);
+    });
     switch (activeFilter) {
       case 'active':
         return sorted.filter((r) => r.isActive !== false && new Date(r.dateTime) >= now);

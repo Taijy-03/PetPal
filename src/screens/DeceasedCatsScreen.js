@@ -21,7 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useApp, useTheme } from '../context/AppContext';
 import {
   formatDate,
-  calculateAge,
+  getLocalDateString,
   getBreedLabel,
   generateId,
 } from '../utils/helpers';
@@ -33,8 +33,9 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GlidingStar = ({ delay = 0, duration = 2200, startX, startY, endX, endY }) => {
   const anim = useRef(new Animated.Value(0)).current;
   const sparkle = useRef(new Animated.Value(0.8)).current;
-  // 随机fadeOutAt点（0.4~1之间）
-  const fadeOutAt = useRef(0.4 + Math.random() * 0.6).current;
+  // 随机fadeOutAt点（0.4~0.9之间），并保证 fadeOutAt + 0.08 不会超过 1
+  const rawFade = 0.4 + Math.random() * 0.5; // in [0.4, 0.9]
+  const fadeOutAt = useRef(Math.min(rawFade, 0.92)).current;
 
   useEffect(() => {
     const animate = () => {
@@ -45,7 +46,7 @@ const GlidingStar = ({ delay = 0, duration = 2200, startX, startY, endX, endY })
           toValue: 1,
           duration,
           easing: Easing.linear,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.delay(1500),
       ]).start(() => animate());
@@ -58,12 +59,12 @@ const GlidingStar = ({ delay = 0, duration = 2200, startX, startY, endX, endY })
         Animated.timing(sparkle, {
           toValue: 1,
           duration: 400,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(sparkle, {
           toValue: 0.65,
           duration: 400,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]).start(() => twinkle());
     };
@@ -79,8 +80,17 @@ const GlidingStar = ({ delay = 0, duration = 2200, startX, startY, endX, endY })
     outputRange: [startY, endY],
   });
   // 淡入->全可见->fadeOutAt后淡出
+  // Ensure inputRange is monotonically non-decreasing and within [0,1]
+  const safeFadeNext = Math.min(fadeOutAt + 0.08, 1);
+  const inputRangeOpacity = [0, 0.08, 0.15, fadeOutAt, safeFadeNext, 1].map(v => Math.max(0, Math.min(1, v)));
+  // Make sure array is non-decreasing (in rare edge cases)
+  for (let i = 1; i < inputRangeOpacity.length; i++) {
+    if (inputRangeOpacity[i] < inputRangeOpacity[i - 1]) {
+      inputRangeOpacity[i] = inputRangeOpacity[i - 1];
+    }
+  }
   const opacity = anim.interpolate({
-    inputRange: [0, 0.08, 0.15, fadeOutAt, fadeOutAt + 0.08, 1],
+    inputRange: inputRangeOpacity,
     outputRange: [0, 0.4, 1, 1, 0, 0],
   });
   const rotate = anim.interpolate({
@@ -126,13 +136,13 @@ const TwinklingStar = ({ x, y, size = 4, delay = 0 }) => {
           toValue: 1,
           duration: 1200 + Math.random() * 800,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 0.2,
           duration: 1000 + Math.random() * 600,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]).start(() => animate());
     };
@@ -171,13 +181,13 @@ const FloatingGlow = ({ x, y, color = '#7B68EE', size = 80, delay = 0 }) => {
           toValue: 1,
           duration: 3000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(anim, {
           toValue: 0,
           duration: 3000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]).start(() => animate());
     };
@@ -243,7 +253,7 @@ export default function DeceasedCatsScreen({ navigation }) {
 
   const handleMarkDeceased = (pet) => {
     setMarkPet(pet);
-    setMarkDate('');
+    setMarkDate(getLocalDateString());
     setMarkNote('');
     setShowMarkDeceasedModal(true);
   };
@@ -284,7 +294,7 @@ export default function DeceasedCatsScreen({ navigation }) {
             const updatedPet = {
               ...markPet,
               isDeceased: true,
-              deceasedDate: markDate || new Date().toISOString(),
+              deceasedDate: markDate || getLocalDateString(),
               memorialNote: markNote,
               memorialPhotos: [],
             };
@@ -312,8 +322,8 @@ export default function DeceasedCatsScreen({ navigation }) {
             const updatedPet = {
               ...pet,
               isDeceased: false,
-              deceasedDate: undefined,
-              memorialNote: undefined,
+              deceasedDate: null,
+              memorialNote: null,
             };
             await updatePet(updatedPet);
           },
@@ -651,7 +661,10 @@ export default function DeceasedCatsScreen({ navigation }) {
         animationType="slide"
         onRequestClose={() => setShowMemorialModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
@@ -867,7 +880,7 @@ export default function DeceasedCatsScreen({ navigation }) {
               <View style={{ height: 40 }} />
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Mark Deceased Modal */}
@@ -970,7 +983,7 @@ export default function DeceasedCatsScreen({ navigation }) {
         onClose={() => setShowDatePicker(false)}
         onSelect={(dateStr) => setMarkDate(dateStr)}
         initialDate={markDate}
-        maxDate={new Date().toISOString().split('T')[0]}
+        maxDate={getLocalDateString()}
         minDate={markPet?.birthDate || undefined}
         validationMessage={
           markPet?.birthDate

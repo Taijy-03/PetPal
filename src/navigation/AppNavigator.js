@@ -231,6 +231,11 @@ function SettingsStack() {
         component={DeceasedCatsScreen}
         options={{ title: '🌙 喵星纪念册' }}
       />
+      <Stack.Screen
+        name="PetDetail"
+        component={PetDetailScreen}
+        options={{ title: '猫咪详情' }}
+      />
     </Stack.Navigator>
   );
 }

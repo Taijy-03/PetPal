@@ -200,12 +200,13 @@ export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDa
 
   const months = React.useMemo(() => {
     const arr = [];
-    const maxMonth = (!allowFuture && selYear === today.getFullYear())
+    const startMonth = (minD && selYear === minD.getFullYear()) ? minD.getMonth() + 1 : 1;
+    const endMonth = (!allowFuture && selYear === today.getFullYear())
       ? today.getMonth() + 1
       : 12;
-    for (let m = 1; m <= maxMonth; m++) arr.push(m);
+    for (let m = startMonth; m <= endMonth; m++) arr.push(m);
     return arr;
-  }, [selYear, allowFuture]);
+  }, [selYear, allowFuture, minD]);
 
   const daysInMonth = React.useMemo(() => {
     return new Date(selYear, selMonth, 0).getDate();
@@ -213,13 +214,36 @@ export function DatePickerModal({ visible, onClose, onSelect, initialDate, maxDa
 
   const days = React.useMemo(() => {
     const arr = [];
+    const startDay = (minD && selYear === minD.getFullYear() && selMonth === minD.getMonth() + 1)
+      ? minD.getDate()
+      : 1;
     const isCurrentYearMonth = !allowFuture
       && selYear === today.getFullYear()
       && selMonth === today.getMonth() + 1;
-    const maxDay = isCurrentYearMonth ? today.getDate() : daysInMonth;
-    for (let d = 1; d <= maxDay; d++) arr.push(d);
+    const endDay = isCurrentYearMonth ? today.getDate() : daysInMonth;
+    for (let d = startDay; d <= endDay; d++) arr.push(d);
     return arr;
-  }, [selYear, selMonth, daysInMonth, allowFuture]);
+  }, [selYear, selMonth, daysInMonth, allowFuture, minD]);
+
+  React.useEffect(() => {
+    // Debug logs to help diagnose empty picker issues
+    if (visible) {
+      try {
+        console.log('DatePickerModal debug:', {
+          initialDate,
+          minDate: minDate ? minD && minD.toISOString().split('T')[0] : null,
+          maxDate: maxD && maxD.toISOString().split('T')[0],
+          effectiveMinYear,
+          yearsCount: years.length,
+          monthsCount: months.length,
+          daysCount: days.length,
+          allowFuture,
+        });
+      } catch (e) {
+        console.warn('Error logging DatePickerModal debug:', e);
+      }
+    }
+  }, [visible, initialDate, minDate, maxDate, selYear, selMonth]);
 
   // Clamp day when month/year changes
   React.useEffect(() => {

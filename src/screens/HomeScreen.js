@@ -461,24 +461,29 @@ export default function HomeScreen({ navigation }) {
                 }
                 activeOpacity={0.7}
               >
-                <View style={[styles.healthIconContainer, { backgroundColor: theme.colors.success + '15' }]}>
+                <View style={[styles.healthIconContainer, { backgroundColor: theme.colors.secondary + '15' }]}>
                   <Text style={styles.healthIcon}>
                     {getHealthIcon(record.type)}
                   </Text>
                 </View>
                 <View style={styles.healthInfo}>
                   <Text style={styles.healthTitle}>
-                    {getHealthTypeLabel(record.type)}
+                    {record.title}
                   </Text>
                   <Text style={styles.healthSubtitle}>
-                    {pet?.name || '未知猫咪'} • {formatDate(record.date)}
+                    {pet?.name || '未知猫咪'} • {getHealthTypeLabel(record.type)}
                   </Text>
-                  {record.notes && (
+                  {record.veterinarian ? (
                     <Text style={styles.healthNotes} numberOfLines={1}>
-                      {record.notes}
+                      👨‍⚕️ {record.veterinarian}{record.clinic ? ` · ${record.clinic}` : ''}
                     </Text>
-                  )}
+                  ) : null}
                 </View>
+                {record.cost != null && (
+                  <View style={styles.costBadge}>
+                    <Text style={styles.costText}>RM{record.cost}</Text>
+                  </View>
+                )}
                 <Ionicons name="chevron-forward" size={16} color={theme.colors.textLight} />
               </TouchableOpacity>
             );
@@ -971,6 +976,18 @@ const createStyles = (theme) =>
       color: theme.colors.textLight,
       marginTop: 2,
       fontStyle: 'italic',
+    },
+    costBadge: {
+      backgroundColor: theme.colors.secondary + '15',
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: 2,
+      borderRadius: theme.borderRadius.round,
+      marginRight: theme.spacing.xs,
+    },
+    costText: {
+      fontSize: theme.fontSize.xs,
+      color: theme.colors.secondary,
+      fontWeight: theme.fontWeight.bold,
     },
 
     // Activity

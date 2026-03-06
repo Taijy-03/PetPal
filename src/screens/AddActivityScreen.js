@@ -12,6 +12,7 @@ import { useApp, useTheme } from '../context/AppContext';
 import {
   FormInput,
   FormDateInput,
+  FormTimeInput,
   FormButton,
   ChipGroup,
 } from '../components/FormElements';
@@ -69,7 +70,7 @@ export default function AddActivityScreen({ navigation, route }) {
       calories: calories ? parseInt(calories) : null,
       notes: notes.trim(),
       createdAt: existingActivity?.createdAt || new Date().toISOString(),
-      updatedAt: isEditing ? new Date().toISOString() : undefined,
+      ...(isEditing && { updatedAt: new Date().toISOString() }),
     };
 
     try {
@@ -107,24 +108,16 @@ export default function AddActivityScreen({ navigation, route }) {
         />
         <View style={{ height: theme.spacing.md }} />
 
-        <View style={styles.row}>
-          <View style={styles.flex}>
-            <FormDateInput
-              label="日期"
-              value={date}
-              onChange={setDate}
-            />
-          </View>
-          <View style={styles.flex}>
-            <FormInput
-              label="时间"
-              value={time}
-              onChangeText={setTime}
-              placeholder="HH:MM"
-              icon="time-outline"
-            />
-          </View>
-        </View>
+        <FormDateInput
+          label="日期"
+          value={date}
+          onChange={setDate}
+        />
+        <FormTimeInput
+          label="时间"
+          value={time}
+          onChange={setTime}
+        />
 
         <View style={styles.row}>
           <View style={styles.flex}>

@@ -53,7 +53,7 @@ export default function AddHealthRecordScreen({ navigation, route }) {
       notes: notes.trim(),
       nextDueDate: nextDueDate || null,
       createdAt: existingRecord?.createdAt || new Date().toISOString(),
-      updatedAt: isEditing ? new Date().toISOString() : undefined,
+      ...(isEditing && { updatedAt: new Date().toISOString() }),
     };
 
     try {

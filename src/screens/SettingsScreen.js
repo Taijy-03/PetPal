@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
 import {
   View,
   Text,
@@ -160,20 +162,6 @@ export default function SettingsScreen({ navigation }) {
     }
   }, [password, clearAll, resetModal]);
 
-  const handleExportData = () => {
-    const data = {
-      exportDate: new Date().toISOString(),
-      pets,
-      healthRecords,
-      activities,
-      reminders,
-      settings,
-    };
-    Alert.alert(
-      '导出数据',
-      `数据概览：\n• ${pets.length} 只猫咪\n• ${healthRecords.length} 条健康记录\n• ${activities.length} 条活动\n• ${reminders.length} 条提醒\n\n完整版将支持数据导出功能。`
-    );
-  };
 
   const StatItem = ({ icon, color, label, value, iconStyle }) => (
     <View style={styles.statItem}>
@@ -184,6 +172,15 @@ export default function SettingsScreen({ navigation }) {
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      navigation.reset({ index: 0, routes: [{ name: 'Auth' }] });
+    } catch (e) {
+      Alert.alert('退出失败', e.message);
+    }
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -307,24 +304,6 @@ export default function SettingsScreen({ navigation }) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>数据</Text>
 
-        <TouchableOpacity style={styles.settingItem} onPress={handleExportData}>
-          <View style={styles.settingLeft}>
-            <View style={[styles.settingIcon, { backgroundColor: '#9DC4E020' }]}>
-              <Ionicons name="download-outline" size={20} color="#9DC4E0" />
-            </View>
-            <View>
-              <Text style={styles.settingLabel}>导出数据</Text>
-              <Text style={styles.settingDescription}>
-                下载你的猫咪数据
-              </Text>
-            </View>
-          </View>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={theme.colors.textLight}
-          />
-        </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingItem} onPress={handleClearData}>
           <View style={styles.settingLeft}>
@@ -495,6 +474,11 @@ export default function SettingsScreen({ navigation }) {
 
       <View style={{ height: 50 }} />
 
+      {/* Sign Out Button */}
+      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <Text style={styles.signOutButtonText}>退出登录</Text>
+      </TouchableOpacity>
+
       {/* Admin Password Modal */}
       <Modal
         visible={showPasswordModal}
@@ -594,6 +578,20 @@ const createStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  signOutButton: {
+    marginHorizontal: 24,
+    marginBottom: 32,
+    backgroundColor: '#E88B8B',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  signOutButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   appInfo: {
     alignItems: 'center',

@@ -30,7 +30,7 @@ const RELATIONSHIP_TYPES = [
 ];
 
 export default function CatFamilyBookScreen({ navigation }) {
-  const { pets, updatePet } = useApp();
+  const { pets, families, updatePet, addFamily, updateFamily, removeFamily } = useApp();
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
@@ -40,6 +40,9 @@ export default function CatFamilyBookScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedPetId, setFocusedPetId] = useState(null);
   const [showTips, setShowTips] = useState(true);
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [editingFamilyGroup, setEditingFamilyGroup] = useState(null);
+  const [editFamilyName, setEditFamilyName] = useState('');
 
   // Stats
   const totalRelations = useMemo(
@@ -177,6 +180,34 @@ export default function CatFamilyBookScreen({ navigation }) {
             };
             await updatePet(updatedTarget);
           }
+
+          // Cleanup orphaned family names
+          // Automatically clear family custom names if a pet loses all relatives,
+          // or run a check to see if the family still exists.
+          if (families && families.length > 0) {
+            // Re-evaluate what families still have valid roots
+            const allRelsCount = (p) => p.relationships?.length || 0;
+            // If the focal pet now has no relations, delete any family where it's the root
+            const updatedPetRels = updatedPet.relationships || [];
+            if (updatedPetRels.length === 0) {
+              const orphanedFamily = families.find(f => f.rootPetId === pet.id);
+              if (orphanedFamily) {
+                await removeFamily(orphanedFamily.id);
+              }
+            }
+            // Also check the target pet
+            if (targetPet) {
+              const targetRels = (targetPet.relationships || []).filter(
+                (r) => !(r.petId === pet.id && r.type === getReverseRelationType(relationType))
+              );
+              if (targetRels.length === 0) {
+                const orphanedFamily = families.find(f => f.rootPetId === targetPet.id);
+                if (orphanedFamily) {
+                  await removeFamily(orphanedFamily.id);
+                }
+              }
+            }
+          }
         },
       },
     ]);
@@ -213,6 +244,31 @@ export default function CatFamilyBookScreen({ navigation }) {
       }
       groups.push(group);
     });
+    
+    // Sort groups so that they have a stable order
+    // Firebase auto-generated IDs are strings that are NOT chronologically ordered.
+    // To ensure "Family 1" stays "Family 1", we must sort by the oldest pet's createdAt time 
+    // or its numeric ID if it has one. If missing, we fallback to ID comparison.
+    groups.forEach(g => {
+      // Find the absolute earliest creation time in this group
+      g.minTime = g.reduce((min, cat) => {
+        const time = cat.createdAt ? new Date(cat.createdAt).getTime() : Number.MAX_SAFE_INTEGER;
+        return time < min ? time : min;
+      }, Number.MAX_SAFE_INTEGER);
+      
+      // Fallback: if no createdAt exists (old data), just use standard ID string compare
+      g.minId = g.reduce((min, cat) => cat.id < min ? cat.id : min, g[0].id);
+    });
+    
+    // Sort the groups themselves by their minTime, then fallback to minId
+    // This stable sorting mechanism means the group containing the oldest cat will ALWAYS be group 0.
+    groups.sort((a, b) => {
+      if (a.minTime !== b.minTime && a.minTime !== Number.MAX_SAFE_INTEGER && b.minTime !== Number.MAX_SAFE_INTEGER) {
+        return a.minTime - b.minTime;
+      }
+      return a.minId.localeCompare(b.minId);
+    });
+
     return groups;
   }, [pets, getRelationships]);
 
@@ -230,10 +286,7 @@ export default function CatFamilyBookScreen({ navigation }) {
       onPress={() => {
         if (focusedPetId === pet.id) {
           // Already focused — navigate to detail
-          navigation.navigate('PetsTab', {
-            screen: 'PetDetail',
-            params: { petId: pet.id },
-          });
+          navigation.navigate('PetDetail', { petId: pet.id });
         } else {
           setFocusedPetId(pet.id);
         }
@@ -319,172 +372,295 @@ export default function CatFamilyBookScreen({ navigation }) {
     />
   );
 
+  // ─── Recursive Component: FamilyNode ───
+  // renderedSet prevents infinite loops if relationships have cycles
+  const FamilyNodeComponent = ({ pet, parent = null, renderedSet = new Set(), isRoot = false }) => {
+    if (!pet || renderedSet.has(pet.id)) return null;
+
+    // We clone the set for this branch so descendants know their ancestors
+    const currentRenderedSet = new Set(renderedSet);
+    currentRenderedSet.add(pet.id);
+
+    // Get relationships
+    const rels = getRelationships(pet);
+    
+    // Mates (we only render mates that haven't been rendered as ancestors to prevent loops)
+    const mates = rels
+      .filter(r => r.type === 'mate' && !currentRenderedSet.has(r.pet.id))
+      .map(r => r.pet);
+
+    // We must mark mates as rendered for subsequent children searches
+    mates.forEach(m => currentRenderedSet.add(m.id));
+
+    // Children of this pet (and potentially of the mate)
+    const children = rels
+      .filter(r => r.type === 'child' && !currentRenderedSet.has(r.pet.id))
+      .map(r => r.pet);
+
+    // If it's the absolute root, we might also want to render siblings side by side
+    // Standard family trees usually only do vertical descendants, 
+    // but we can render root siblings here if requested.
+    const siblings = isRoot 
+      ? rels.filter(r => r.type === 'sibling' && !currentRenderedSet.has(r.pet.id)).map(r => r.pet)
+      : [];
+
+    siblings.forEach(s => currentRenderedSet.add(s.id));
+
+    return (
+      <View style={styles.treeColumn}>
+        {/* The Node Level (Pet + Mates + Siblings) */}
+        <View style={styles.treeLevel}>
+          {/* Main Pet */}
+          <View style={styles.focalNodeWrap}>
+            <View style={styles.focalGlow}>
+               <TreeNode 
+                 pet={pet} 
+                 size={isRoot ? NODE_SIZE : SMALL_NODE_SIZE} 
+                 isFocused={focusedPetId === pet.id} 
+                 onLongPress={parent ? () => handleRemoveRelation(parent, pet.id, 'child') : undefined}
+               />
+            </View>
+            <TouchableOpacity
+              style={[styles.focalAddBtn, { backgroundColor: theme.colors.primary, bottom: -4, right: -4 }]}
+              onPress={() => handleAddRelation(pet)}
+            >
+              <Ionicons name="add" size={14} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Mates */}
+          {mates.map(m => (
+            <React.Fragment key={`mate-${m.id}`}>
+              <View style={styles.mateLink}>
+                <View style={[styles.mateDash, { borderColor: '#E8A0BF' }]} />
+                <Text style={{ fontSize: 13 }}>💕</Text>
+                <View style={[styles.mateDash, { borderColor: '#E8A0BF' }]} />
+              </View>
+              <TreeNode 
+                pet={m} 
+                size={SMALL_NODE_SIZE} 
+                label="伴侣" 
+                isFocused={focusedPetId === m.id}
+                onLongPress={() => handleRemoveRelation(pet, m.id, 'mate')}
+              />
+            </React.Fragment>
+          ))}
+
+          {/* Siblings (only at root) */}
+          {siblings.length > 0 && (
+            <>
+              <View style={styles.mateLink}>
+                <View style={[styles.mateDash, { borderColor: theme.colors.border }]} />
+                <Text style={{ fontSize: 13 }}>👫</Text>
+                <View style={[styles.mateDash, { borderColor: theme.colors.border }]} />
+              </View>
+              {siblings.map(sib => (
+                <View key={`sib-${sib.id}`} style={{ marginRight: theme.spacing.md }}>
+                  <TreeNode 
+                    pet={sib} 
+                    size={SMALL_NODE_SIZE} 
+                    label="兄弟姐妹"
+                    isFocused={focusedPetId === sib.id}
+                    onLongPress={() => handleRemoveRelation(pet, sib.id, 'sibling')} 
+                  />
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+
+        {/* The Children Level */}
+        {children.length > 0 && (
+          <>
+            <VLine height={14} />
+            <Dot />
+            {children.length > 1 && (
+              <View style={styles.branchBar}>
+                <View style={[styles.branchBarLine, { backgroundColor: theme.colors.textLight + '60' }]} />
+              </View>
+            )}
+            <View style={styles.treeLevel}>
+              {children.map(child => (
+                <View key={`child-${child.id}`} style={styles.childBranch}>
+                  <VLine height={14} />
+                  {/* Recursive call for the next generation */}
+                  <FamilyNodeComponent pet={child} parent={pet} renderedSet={currentRenderedSet} />
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+      </View>
+    );
+  };
+
   // ─── Render a single Family Tree ───
   const renderFamilyTree = (group, groupIndex) => {
-    // Pick the focal cat for this tree
-    const focusedInGroup = focusedPetId ? group.find((p) => p.id === focusedPetId) : null;
-    const petWithParents = group.find((p) => {
+    // 1. Identify Root Nodes (cats in this group with NO parents, or the absolute oldest if cyclic)
+    let roots = group.filter(p => {
       const rels = getRelationships(p);
-      return rels.some((r) => r.type === 'mother' || r.type === 'father');
+      return !rels.some(r => r.type === 'mother' || r.type === 'father');
     });
-    const rootPet = focusedInGroup || petWithParents || group[0];
-    const tree = buildTreeData(rootPet);
+
+    // If it's a cyclic graph without a clear start, fallback to the oldest cat
+    if (roots.length === 0) {
+      roots = [group.reduce((oldest, current) => {
+        const tOldest = oldest.createdAt ? new Date(oldest.createdAt).getTime() : Number.MAX_SAFE_INTEGER;
+        const tCurrent = current.createdAt ? new Date(current.createdAt).getTime() : Number.MAX_SAFE_INTEGER;
+        return tCurrent < tOldest ? current : oldest;
+      }, group[0])];
+    } else {
+      // If there are multiple roots (e.g. two families joined by marriage),
+      // we only want to render independent roots. A husband and wife are both "parentless",
+      // but rendering both as roots draws two duplicate trees.
+      // We filter out roots that are merely mates of other roots.
+      const independentRoots = [];
+      const checkedAsMates = new Set();
+      for (const r of roots) {
+        if (!checkedAsMates.has(r.id)) {
+          independentRoots.push(r);
+          // Mark their mates so we don't treat them as independent roots
+          const mates = getRelationships(r).filter(rel => rel.type === 'mate').map(rel => rel.pet.id);
+          mates.forEach(mId => checkedAsMates.add(mId));
+        }
+      }
+      roots = independentRoots;
+    }
+
+    const firstRootPet = roots[0];
+
+    // Find custom family name if exists
+    const familyRecord = families?.find(f => f.rootPetId === firstRootPet.id);
+    
+    // Auto-numbering logic based on families already created + stable index
+    // If not named, we assign a stable number. Since groups are sorted,
+    // we can find its index in the sorted roots.
+    const rootIndex = familyRoots.findIndex(g => g.minId === group.minId);
+    const defaultName = `家族 ${rootIndex + 1}`;
+    const familyName = familyRecord ? familyRecord.name : defaultName;
+
+    const isCollapsed = collapsedGroups[groupIndex] || false;
+    const toggleCollapse = () => {
+      setCollapsedGroups(prev => ({ ...prev, [groupIndex]: !prev[groupIndex] }));
+    };
+
+    const handleSaveFamilyName = async () => {
+      if (!editFamilyName.trim()) {
+        setEditingFamilyGroup(null);
+        return;
+      }
+      if (familyRecord) {
+        // 更新现有家族记录
+        await updateFamily({ ...familyRecord, name: editFamilyName.trim() });
+      } else {
+        // 创建新家族记录时，传入当前时间戳保证顺序
+        await addFamily({ 
+          rootPetId: firstRootPet.id, 
+          name: editFamilyName.trim(),
+          createdAt: new Date().toISOString()
+        });
+      }
+      setEditingFamilyGroup(null);
+    };
+
+    const handleDeleteEntireFamily = () => {
+      Alert.alert(
+        '删除整个家族关系',
+        '确定要删除该家族的所有关系吗？\n\n注意：这不会删除猫咪档案，但会一并解散该群组内的所有亲子、伴侣和兄弟关系。',
+        [
+          { text: '取消', style: 'cancel' },
+          { 
+            text: '确定解散', 
+            style: 'destructive',
+            onPress: async () => {
+              // 1. Clear relationships for all pets in the group
+              for (const pet of group) {
+                if (pet.relationships && pet.relationships.length > 0) {
+                  await updatePet({ ...pet, relationships: [] });
+                }
+              }
+              // 2. Remove the custom family name record if it exists
+              if (familyRecord) {
+                await removeFamily(familyRecord.id);
+              }
+            }
+          }
+        ]
+      );
+    };
 
     return (
       <View key={`group-${groupIndex}`} style={styles.treeCard}>
         {/* Card Header */}
-        <View style={styles.treeCardHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.treeCardTitle}>🌳 家族 {groupIndex + 1}</Text>
-            <Text style={styles.treeCardMemberCount}>
-              {group.length} 只猫咪 · {Math.round(group.reduce((acc, p) => acc + (p.relationships?.length || 0), 0) / 2)} 个关系
-            </Text>
+        <TouchableOpacity style={styles.treeCardHeader} onPress={toggleCollapse} activeOpacity={0.7}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+            {editingFamilyGroup === groupIndex ? (
+              <TextInput
+                style={styles.treeCardTitleEditMode}
+                value={editFamilyName}
+                onChangeText={setEditFamilyName}
+                autoFocus
+                onBlur={handleSaveFamilyName}
+                onSubmitEditing={handleSaveFamilyName}
+                placeholder="输入家族名称"
+                placeholderTextColor={theme.colors.textLight}
+              />
+            ) : (
+              <>
+                <Text style={styles.treeCardTitle}>🌳 {familyName}</Text>
+                <TouchableOpacity
+                  style={{ paddingHorizontal: 8, paddingVertical: 4 }}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setEditFamilyName(familyName.replace('🌳 ', '').replace(defaultName, ''));
+                    setEditingFamilyGroup(groupIndex);
+                  }}
+                >
+                  <Ionicons name="pencil" size={16} color={theme.colors.textLight} />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
-          <TouchableOpacity
-            style={styles.addRelBtn}
-            onPress={() => handleAddRelation(rootPet)}
-          >
-            <Ionicons name="add-circle" size={22} color={theme.colors.primary} />
-            <Text style={styles.addRelBtnText}>添加</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <TouchableOpacity
+              style={styles.deleteFamilyBtn}
+              onPress={(e) => { e.stopPropagation(); handleDeleteEntireFamily(); }}
+            >
+              <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+            </TouchableOpacity>
+            <View style={{ width: 1, height: 16, backgroundColor: theme.colors.border }} />
+            <TouchableOpacity
+              style={styles.addRelBtn}
+              onPress={(e) => { e.stopPropagation(); handleAddRelation(firstRootPet); }}
+            >
+              <Ionicons name="add-circle" size={22} color={theme.colors.primary} />
+              <Text style={styles.addRelBtnText}>添加</Text>
+            </TouchableOpacity>
+            <Ionicons name={isCollapsed ? "chevron-down" : "chevron-up"} size={22} color={theme.colors.textLight} />
+          </View>
+        </TouchableOpacity>
 
         {/* Tree Canvas - horizontally scrollable */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.treeCanvas}
-        >
-          <View style={styles.treeColumn}>
-            {/* ══ LEVEL 1: Parents ══ */}
-            {tree.parents.length > 0 && (
-              <>
-                <View style={styles.treeLevel}>
-                  {tree.parents.map((rel, i) => (
-                    <React.Fragment key={rel.petId}>
-                      {i > 0 && (
-                        <View style={styles.parentConnector}>
-                          <HLine width={28} />
-                          <Text style={styles.parentHeartEmoji}>❤️</Text>
-                          <HLine width={28} />
-                        </View>
-                      )}
-                      <TreeNode
-                        pet={rel.pet}
-                        size={SMALL_NODE_SIZE}
-                        label={getRelationLabel(rel.type)}
-                        onLongPress={() =>
-                          handleRemoveRelation(rootPet, rel.petId, rel.type)
-                        }
-                      />
-                    </React.Fragment>
-                  ))}
+        {!isCollapsed && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.treeCanvas}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingRight: 40 }}>
+              {roots.map((r, idx) => (
+                <View key={`root-${r.id}`} style={{ marginRight: idx < roots.length - 1 ? 60 : 0 }}>
+                   <FamilyNodeComponent pet={r} isRoot={true} renderedSet={new Set()} />
                 </View>
-                {/* Connector down from parents */}
-                <VLine height={14} />
-                <Dot />
-                <VLine height={14} />
-              </>
-            )}
-
-            {/* ══ LEVEL 2: Focal Cat + Mate ══ */}
-            <View style={styles.treeLevel}>
-              {tree.mate && (
-                <>
-                  <TreeNode
-                    pet={tree.mate.pet}
-                    size={SMALL_NODE_SIZE}
-                    label="伴侣"
-                    onLongPress={() =>
-                      handleRemoveRelation(rootPet, tree.mate.petId, 'mate')
-                    }
-                  />
-                  <View style={styles.mateLink}>
-                    <View style={[styles.mateDash, { borderColor: '#E8A0BF' }]} />
-                    <Text style={{ fontSize: 13 }}>💕</Text>
-                    <View style={[styles.mateDash, { borderColor: '#E8A0BF' }]} />
-                  </View>
-                </>
-              )}
-              <View style={styles.focalNodeWrap}>
-                <View style={styles.focalGlow}>
-                  <TreeNode
-                    pet={rootPet}
-                    size={NODE_SIZE}
-                    isFocused={true}
-                  />
-                </View>
-                <TouchableOpacity
-                  style={[styles.focalAddBtn, { backgroundColor: theme.colors.primary }]}
-                  onPress={() => handleAddRelation(rootPet)}
-                >
-                  <Ionicons name="add" size={14} color="#fff" />
-                </TouchableOpacity>
-              </View>
+              ))}
             </View>
-
-            {/* ══ LEVEL 3: Children ══ */}
-            {tree.children.length > 0 && (
-              <>
-                <VLine height={14} />
-                <Dot />
-                {/* Horizontal spread line */}
-                {tree.children.length > 1 && (
-                  <View style={styles.branchBar}>
-                    <View
-                      style={[
-                        styles.branchBarLine,
-                        { backgroundColor: theme.colors.textLight + '60' },
-                      ]}
-                    />
-                  </View>
-                )}
-                <View style={styles.treeLevel}>
-                  {tree.children.map((rel) => (
-                    <View key={rel.petId} style={styles.childBranch}>
-                      <VLine height={14} />
-                      <TreeNode
-                        pet={rel.pet}
-                        size={SMALL_NODE_SIZE}
-                        label="子女"
-                        onLongPress={() =>
-                          handleRemoveRelation(rootPet, rel.petId, 'child')
-                        }
-                      />
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
-
-            {/* ══ LEVEL 4: Siblings ══ */}
-            {tree.siblings.length > 0 && (
-              <View style={styles.siblingsArea}>
-                <View style={styles.siblingDivider}>
-                  <View style={[styles.siblingDivLine, { backgroundColor: theme.colors.border }]} />
-                  <Text style={styles.siblingDivText}>👫 兄弟姐妹</Text>
-                  <View style={[styles.siblingDivLine, { backgroundColor: theme.colors.border }]} />
-                </View>
-                <View style={styles.treeLevel}>
-                  {tree.siblings.map((rel) => (
-                    <TreeNode
-                      key={rel.petId}
-                      pet={rel.pet}
-                      size={SMALL_NODE_SIZE}
-                      label="兄弟姐妹"
-                      onLongPress={() =>
-                        handleRemoveRelation(rootPet, rel.petId, 'sibling')
-                      }
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        </ScrollView>
+          </ScrollView>
+        )}
 
         {/* Footer hint */}
-        <Text style={styles.treeHint}>💡 点击切换视角 · 再次点击查看详情 · 长按删除关系</Text>
+        {!isCollapsed && (
+          <Text style={styles.treeHint}>💡 往下延伸为子孙代 · 带💕代表伴侣 · 点击中心头像查看详情</Text>
+        )}
       </View>
     );
   };
@@ -789,11 +965,26 @@ const createStyles = (theme) =>
       fontWeight: theme.fontWeight.bold,
       color: theme.colors.text,
     },
+    treeCardTitleEditMode: {
+      flex: 1,
+      fontSize: theme.fontSize.lg,
+      fontWeight: theme.fontWeight.bold,
+      color: theme.colors.text,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.primary,
+      paddingVertical: 2,
+      marginRight: 8,
+    },
     addRelBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     addRelBtnText: {
       fontSize: theme.fontSize.sm,
       color: theme.colors.primary,
       fontWeight: theme.fontWeight.medium,
+    },
+    deleteFamilyBtn: {
+      padding: 6,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
 
     // ─── Tree Canvas ───
@@ -818,7 +1009,6 @@ const createStyles = (theme) =>
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: theme.colors.background,
-      overflow: 'hidden',
     },
     treeNodeBadge: {
       position: 'absolute',

@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useMemo, useRef, useCallback } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase';
 import { Alert, AppState } from 'react-native';
 import * as Storage from '../utils/storage';
 import {
@@ -18,6 +20,7 @@ const initialState = {
   healthRecords: [],
   activities: [],
   reminders: [],
+  families: [],
   settings: {
     darkMode: false,
     notificationsEnabled: true,
@@ -54,6 +57,11 @@ const actionTypes = {
   // Settings
   SET_SETTINGS: 'SET_SETTINGS',
   UPDATE_SETTINGS: 'UPDATE_SETTINGS',
+  // Families
+  SET_FAMILIES: 'SET_FAMILIES',
+  ADD_FAMILY: 'ADD_FAMILY',
+  UPDATE_FAMILY: 'UPDATE_FAMILY',
+  DELETE_FAMILY: 'DELETE_FAMILY',
   // Clear
   CLEAR_ALL: 'CLEAR_ALL',
 };
@@ -168,6 +176,26 @@ function appReducer(state, action) {
         ...state,
         settings: { ...state.settings, ...action.payload },
       };
+    // Families
+    case actionTypes.SET_FAMILIES:
+      return { ...state, families: action.payload };
+    case actionTypes.ADD_FAMILY:
+      return {
+        ...state,
+        families: [...state.families, action.payload],
+      };
+    case actionTypes.UPDATE_FAMILY:
+      return {
+        ...state,
+        families: state.families.map((f) =>
+          f.id === action.payload.id ? action.payload : f
+        ),
+      };
+    case actionTypes.DELETE_FAMILY:
+      return {
+        ...state,
+        families: state.families.filter((f) => f.id !== action.payload),
+      };
     // Clear
     case actionTypes.CLEAR_ALL:
       return { ...initialState, isLoading: false };
@@ -181,9 +209,12 @@ export function AppProvider({ children }) {
   // Track which reminders have already been alerted (by id) to avoid duplicates
   const alertedRemindersRef = useRef(new Set());
 
-  // Load all data on mount
+  // Load all data on mount & when auth state changes
   useEffect(() => {
-    loadAllData();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      loadAllData();
+    });
+    return unsubscribe;
   }, []);
 
   const loadAllData = async () => {
@@ -191,17 +222,49 @@ export function AppProvider({ children }) {
       // Auto-clean old records (keep last 30 days)
       await Storage.cleanOldRecords(30);
 
-      const [pets, healthRecords, activities, reminders, settings] =
+      const [pets, healthRecords, activities, reminders, families, settings] =
         await Promise.all([
           Storage.getPets(),
           Storage.getHealthRecords(),
           Storage.getActivities(),
           Storage.getReminders(),
+          Storage.getFamilies(),
           Storage.getSettings(),
         ]);
+
+      // Deduplicate items by id to avoid duplicate React keys
+      const uniqueById = (arr) => {
+        if (!Array.isArray(arr)) return [];
+        const map = new Map();
+        for (const item of arr) {
+          if (!item) continue;
+          const id = item.id || item._id || JSON.stringify(item);
+          if (map.has(id)) {
+            console.warn('Duplicate item id detected and skipped:', id);
+            continue;
+          }
+          map.set(id, item);
+        }
+        return Array.from(map.values());
+      };
+
+      const dedupedPets = uniqueById(pets);
+      const dedupedHealth = uniqueById(healthRecords);
+      const dedupedActivities = uniqueById(activities);
+      const dedupedReminders = uniqueById(reminders);
+      const dedupedFamilies = uniqueById(families);
+
+      console.log('Firestore同步测试:');
+      console.log('pets:', dedupedPets);
+      console.log('healthRecords:', dedupedHealth);
+      console.log('activities:', dedupedActivities);
+      console.log('reminders:', dedupedReminders);
+      console.log('families:', dedupedFamilies);
+      console.log('settings:', settings);
+
       dispatch({
         type: actionTypes.LOAD_ALL_DATA,
-        payload: { pets, healthRecords, activities, reminders, settings },
+        payload: { pets: dedupedPets, healthRecords: dedupedHealth, activities: dedupedActivities, reminders: dedupedReminders, families: dedupedFamilies, settings },
       });
 
       // Auto-deactivate expired one-time reminders
@@ -226,6 +289,13 @@ export function AppProvider({ children }) {
       }
     } catch (error) {
       console.error('Error loading data:', error);
+      // If Firestore permission error, give clearer hint
+      if (error && error.code === 'permission-denied') {
+        Alert.alert(
+          '权限错误',
+          '无法从 Firestore 读取数据：缺少权限。请在 Firebase 控制台检查 Firestore 规则，临时可以将规则设置为 allow read, write: if true 用于测试，或确保规则允许已登录用户访问（request.auth != null）。'
+        );
+      }
       dispatch({ type: actionTypes.SET_LOADING, payload: false });
     }
   };
@@ -261,6 +331,27 @@ export function AppProvider({ children }) {
 
       const reminderDate = new Date(reminder.dateTime);
       const alertKey = `${reminder.id}`;
+
+      // 检查一次性提醒是否已过期（过去的任意时间），如果已过期则标记为不活跃
+      if (reminder.frequency === 'once' && reminderDate < now) {
+         // 我们在这里不仅触发提醒（如果在2分钟内），而且如果已经过了很久，我们也应该关闭它
+         const diffMs = now.getTime() - reminderDate.getTime();
+         
+         // 如果超出了提醒窗口（比如超过2分钟），直接关闭它但不弹窗
+         if (diffMs > 120000) {
+            const updated = { ...reminder, isActive: false };
+            (async () => {
+              try {
+                await Storage.updateReminder(updated);
+                dispatch({ type: actionTypes.UPDATE_REMINDER, payload: updated });
+                console.log('Auto-deactivated expired reminder silently:', updated.id);
+              } catch (e) {
+                console.error('Failed to auto-deactivate reminder:', e, updated.id);
+              }
+            })();
+            continue; // 跳过后续的弹窗逻辑
+         }
+      }
 
       // For one-time reminders: check if it's due (within the last 2 minutes)
       // For repeating reminders: check if current time matches hour:minute (within 2 min window)
@@ -312,8 +403,16 @@ export function AppProvider({ children }) {
         // Auto-deactivate one-time reminders after they fire
         if (reminder.frequency === 'once') {
           const updated = { ...reminder, isActive: false };
-          Storage.updateReminder(updated);
-          dispatch({ type: actionTypes.UPDATE_REMINDER, payload: updated });
+          (async () => {
+            try {
+              const res = await Storage.updateReminder(updated);
+              // If Storage.updateReminder for Firestore returns boolean or id, handle both
+              console.log('Auto-deactivate reminder result:', res);
+              dispatch({ type: actionTypes.UPDATE_REMINDER, payload: updated });
+            } catch (e) {
+              console.error('Failed to auto-deactivate reminder:', e, updated.id);
+            }
+          })();
         }
       }
     }
@@ -337,6 +436,27 @@ export function AppProvider({ children }) {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         checkDueReminders();
+        // Also sweep expired one-time reminders when app becomes active
+        (async () => {
+          try {
+            const now = new Date();
+            const remindersList = await Storage.getReminders();
+            for (const r of remindersList || []) {
+              if (r.frequency === 'once' && r.isActive !== false && new Date(r.dateTime) <= now) {
+                const updated = { ...r, isActive: false };
+                try {
+                  await Storage.updateReminder(updated);
+                  dispatch({ type: actionTypes.UPDATE_REMINDER, payload: updated });
+                  console.log('Swept and deactivated expired reminder on foreground:', updated.id);
+                } catch (e) {
+                  console.error('Error sweeping expired reminder:', e, updated.id);
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Error during sweep on foreground:', e);
+          }
+        })();
       }
     });
 
@@ -348,13 +468,53 @@ export function AppProvider({ children }) {
 
   // Pet actions
   const addPet = async (pet) => {
-    await Storage.addPet(pet);
-    dispatch({ type: actionTypes.ADD_PET, payload: pet });
+    let photoUrl = pet.photo;
+    if (pet.photo && pet.photo.startsWith('file://')) {
+      const path = `pets/${pet.id}/photo_${Date.now()}.jpg`;
+      photoUrl = await Storage.uploadImage(pet.photo, path);
+    }
+    
+    const petToSave = { ...pet, photo: photoUrl };
+    const id = await Storage.addPet(petToSave);
+    const petWithId = { ...petToSave, id };
+    dispatch({ type: actionTypes.ADD_PET, payload: petWithId });
   };
 
   const updatePet = async (pet) => {
-    await Storage.updatePet(pet);
-    dispatch({ type: actionTypes.UPDATE_PET, payload: pet });
+    let photoUrl = pet.photo;
+    if (pet.photo && pet.photo.startsWith('file://')) {
+      const path = `pets/${pet.id}/photo_${Date.now()}.jpg`;
+      photoUrl = await Storage.uploadImage(pet.photo, path);
+    }
+
+    // Also handle gallery photos if they are local
+    const updatedPhotos = await Promise.all((pet.photos || []).map(async (p) => {
+      if (p.uri && p.uri.startsWith('file://')) {
+        const path = `pets/${pet.id}/gallery/${p.id}.jpg`;
+        const uri = await Storage.uploadImage(p.uri, path);
+        return { ...p, uri };
+      }
+      return p;
+    }));
+
+    // Handle memorial photos if they are local
+    const updatedMemorialPhotos = await Promise.all((pet.memorialPhotos || []).map(async (p) => {
+      if (p.uri && p.uri.startsWith('file://')) {
+        const path = `pets/${pet.id}/memorial/${p.id}.jpg`;
+        const uri = await Storage.uploadImage(p.uri, path);
+        return { ...p, uri };
+      }
+      return p;
+    }));
+
+    const petToUpdate = { 
+      ...pet, 
+      photo: photoUrl, 
+      photos: updatedPhotos,
+      memorialPhotos: updatedMemorialPhotos 
+    };
+    await Storage.updatePet(petToUpdate);
+    dispatch({ type: actionTypes.UPDATE_PET, payload: petToUpdate });
   };
 
   const removePet = async (petId) => {
@@ -368,8 +528,9 @@ export function AppProvider({ children }) {
 
   // Health Record actions
   const addHealthRecord = async (record) => {
-    await Storage.addHealthRecord(record);
-    dispatch({ type: actionTypes.ADD_HEALTH_RECORD, payload: record });
+    const id = await Storage.addHealthRecord(record);
+    const recWithId = { ...record, id };
+    dispatch({ type: actionTypes.ADD_HEALTH_RECORD, payload: recWithId });
   };
 
   const updateHealthRecord = async (record) => {
@@ -384,8 +545,9 @@ export function AppProvider({ children }) {
 
   // Activity actions
   const addActivityRecord = async (activity) => {
-    await Storage.addActivity(activity);
-    dispatch({ type: actionTypes.ADD_ACTIVITY, payload: activity });
+    const id = await Storage.addActivity(activity);
+    const activityWithId = { ...activity, id };
+    dispatch({ type: actionTypes.ADD_ACTIVITY, payload: activityWithId });
   };
 
   const updateActivityRecord = async (activity) => {
@@ -400,12 +562,13 @@ export function AppProvider({ children }) {
 
   // Reminder actions
   const addReminderRecord = async (reminder) => {
-    await Storage.addReminder(reminder);
-    dispatch({ type: actionTypes.ADD_REMINDER, payload: reminder });
+    const id = await Storage.addReminder(reminder);
+    const reminderWithId = { ...reminder, id };
+    dispatch({ type: actionTypes.ADD_REMINDER, payload: reminderWithId });
     // Schedule device notification
-    if (reminder.isActive !== false && state.settings?.notificationsEnabled !== false) {
+    if (reminderWithId.isActive !== false && state.settings?.notificationsEnabled !== false) {
       const pet = state.pets.find((p) => p.id === reminder.petId);
-      await scheduleReminderNotification(reminder, pet?.name);
+      await scheduleReminderNotification(reminderWithId, pet?.name);
     }
   };
 
@@ -448,6 +611,23 @@ export function AppProvider({ children }) {
     }
   };
 
+  // Family actions
+  const addFamily = async (family) => {
+    const id = await Storage.addFamily(family);
+    const familyWithId = { ...family, id };
+    dispatch({ type: actionTypes.ADD_FAMILY, payload: familyWithId });
+  };
+
+  const updateFamily = async (family) => {
+    await Storage.updateFamily(family);
+    dispatch({ type: actionTypes.UPDATE_FAMILY, payload: family });
+  };
+
+  const removeFamily = async (familyId) => {
+    await Storage.deleteFamily(familyId);
+    dispatch({ type: actionTypes.DELETE_FAMILY, payload: familyId });
+  };
+
   // Clear all
   const clearAll = async () => {
     await Storage.clearAllData();
@@ -470,6 +650,9 @@ export function AppProvider({ children }) {
     updateReminder,
     removeReminder,
     updateSettings,
+    addFamily,
+    updateFamily,
+    removeFamily,
     clearAll,
     refreshData: loadAllData,
   };
