@@ -468,53 +468,14 @@ export function AppProvider({ children }) {
 
   // Pet actions
   const addPet = async (pet) => {
-    let photoUrl = pet.photo;
-    if (pet.photo && pet.photo.startsWith('file://')) {
-      const path = `pets/${pet.id}/photo_${Date.now()}.jpg`;
-      photoUrl = await Storage.uploadImage(pet.photo, path);
-    }
-    
-    const petToSave = { ...pet, photo: photoUrl };
-    const id = await Storage.addPet(petToSave);
-    const petWithId = { ...petToSave, id };
+    const id = await Storage.addPet(pet);
+    const petWithId = { ...pet, id };
     dispatch({ type: actionTypes.ADD_PET, payload: petWithId });
   };
 
   const updatePet = async (pet) => {
-    let photoUrl = pet.photo;
-    if (pet.photo && pet.photo.startsWith('file://')) {
-      const path = `pets/${pet.id}/photo_${Date.now()}.jpg`;
-      photoUrl = await Storage.uploadImage(pet.photo, path);
-    }
-
-    // Also handle gallery photos if they are local
-    const updatedPhotos = await Promise.all((pet.photos || []).map(async (p) => {
-      if (p.uri && p.uri.startsWith('file://')) {
-        const path = `pets/${pet.id}/gallery/${p.id}.jpg`;
-        const uri = await Storage.uploadImage(p.uri, path);
-        return { ...p, uri };
-      }
-      return p;
-    }));
-
-    // Handle memorial photos if they are local
-    const updatedMemorialPhotos = await Promise.all((pet.memorialPhotos || []).map(async (p) => {
-      if (p.uri && p.uri.startsWith('file://')) {
-        const path = `pets/${pet.id}/memorial/${p.id}.jpg`;
-        const uri = await Storage.uploadImage(p.uri, path);
-        return { ...p, uri };
-      }
-      return p;
-    }));
-
-    const petToUpdate = { 
-      ...pet, 
-      photo: photoUrl, 
-      photos: updatedPhotos,
-      memorialPhotos: updatedMemorialPhotos 
-    };
-    await Storage.updatePet(petToUpdate);
-    dispatch({ type: actionTypes.UPDATE_PET, payload: petToUpdate });
+    await Storage.updatePet(pet);
+    dispatch({ type: actionTypes.UPDATE_PET, payload: pet });
   };
 
   const removePet = async (petId) => {

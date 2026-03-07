@@ -1,9 +1,9 @@
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const KEYS = {
-  PASSWORD_HASH: 'admin_password_hash',
-  SALT: 'admin_password_salt',
   FAILED_ATTEMPTS: 'admin_failed_attempts',
   LOCKOUT_UNTIL: 'admin_lockout_until',
 };
@@ -36,8 +36,12 @@ const hashPassword = async (password, salt) => {
  */
 export const isAdminPasswordSet = async () => {
   try {
-    const hash = await SecureStore.getItemAsync(KEYS.PASSWORD_HASH);
-    return !!hash;
+    const adminDocRef = doc(db, 'settings', 'admin');
+    const adminDocSnap = await getDoc(adminDocRef);
+    if (adminDocSnap.exists()) {
+      return !!adminDocSnap.data().passwordHash;
+    }
+    return false;
   } catch (error) {
     console.error('Error checking admin password:', error);
     return false;
@@ -52,8 +56,12 @@ export const setAdminPassword = async (password) => {
     const salt = generateSalt();
     const hash = await hashPassword(password, salt);
 
-    await SecureStore.setItemAsync(KEYS.PASSWORD_HASH, hash);
-    await SecureStore.setItemAsync(KEYS.SALT, salt);
+    const adminDocRef = doc(db, 'settings', 'admin');
+    await setDoc(adminDocRef, {
+      passwordHash: hash,
+      salt: salt,
+    }, { merge: true });
+
     // Reset failed attempts on password change
     await SecureStore.deleteItemAsync(KEYS.FAILED_ATTEMPTS);
     await SecureStore.deleteItemAsync(KEYS.LOCKOUT_UNTIL);
@@ -115,12 +123,15 @@ export const verifyAdminPassword = async (password) => {
       };
     }
 
-    const storedHash = await SecureStore.getItemAsync(KEYS.PASSWORD_HASH);
-    const salt = await SecureStore.getItemAsync(KEYS.SALT);
+    const adminDocRef = doc(db, 'settings', 'admin');
+    const adminDocSnap = await getDoc(adminDocRef);
 
-    if (!storedHash || !salt) {
+    if (!adminDocSnap.exists() || !adminDocSnap.data().passwordHash || !adminDocSnap.data().salt) {
       return { success: false, error: '管理员密码未设置' };
     }
+
+    const storedHash = adminDocSnap.data().passwordHash;
+    const salt = adminDocSnap.data().salt;
 
     const inputHash = await hashPassword(password, salt);
 

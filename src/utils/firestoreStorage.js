@@ -1,27 +1,32 @@
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, query, where
 } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as ImageManipulator from 'expo-image-manipulator';
 
-// Helper to upload image and return download URL
-export const uploadImage = async (uri, path) => {
-  if (!uri || uri.startsWith('http')) return uri; // Already a URL or empty
+export const uploadImageAsync = async (uri) => {
+  if (!uri || !uri.startsWith('file://')) return uri;
 
   try {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, blob);
-    return await getDownloadURL(storageRef);
+    // 压缩图片并转为 base64，直接存入 Firestore 规避 Firebase Storage 问题
+    const manipResult = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 500 } }], // 限制为500px防止base64过大拖慢Firestore
+      { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+    );
+        
+    if (manipResult.base64) {
+      // 加上 Data URI 前缀，以便可以作为 Image组件 的 source={{uri: ...}} 直接显示
+      return `data:image/jpeg;base64,${manipResult.base64}`;
+    }
+    
+    return uri;
   } catch (error) {
-    console.error('Error uploading image:', error);
-    return uri; // Fallback to local URI if upload fails
+    console.error('Error generating base64 image: ', error);
+    return uri;
   }
 };
-
-// PETS
 
 // PETS
 export const getPets = async () => {
@@ -30,12 +35,29 @@ export const getPets = async () => {
 };
 
 export const addPet = async (pet) => {
+  if (pet.photo) {
+    pet.photo = await uploadImageAsync(pet.photo);
+  }
   const docRef = await addDoc(collection(db, 'pets'), pet);
   return docRef.id;
 };
 
 export const updatePet = async (updatedPet) => {
   const { id, ...data } = updatedPet;
+  if (data.photo) {
+    data.photo = await uploadImageAsync(data.photo);
+  }
+  if (data.photos && Array.isArray(data.photos)) {
+    data.photos = await Promise.all(
+      data.photos.map(async (p) => {
+        if (p.uri && p.uri.startsWith('file://')) {
+          const newUri = await uploadImageAsync(p.uri);
+          return { ...p, uri: newUri };
+        }
+        return p;
+      })
+    );
+  }
   await setDoc(doc(db, 'pets', id), data, { merge: true });
   return true;
 };
